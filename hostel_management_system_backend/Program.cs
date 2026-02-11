@@ -1,12 +1,30 @@
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Hostel API", Version = "v1" });
 });
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Repositories
+builder.Services.AddScoped(typeof(ICrudRepository<>), typeof(CrudRepository<>));
+builder.Services.AddScoped<IHostelAmenityRepository, HostelAmenityRepository>();
+
+// Services
+builder.Services.AddScoped<IUsersService, UsersService>();
+builder.Services.AddScoped<IHostelsService, HostelsService>();
+builder.Services.AddScoped<IRoomsService, RoomsService>();
+builder.Services.AddScoped<IAmenitiesService, AmenitiesService>();
+builder.Services.AddScoped<IHostelListingsService, HostelListingsService>();
+builder.Services.AddScoped<IInteractionEventsService, InteractionEventsService>();
+builder.Services.AddScoped<IHostelAmenitiesService, HostelAmenitiesService>();
 
 var app = builder.Build();
 
