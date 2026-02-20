@@ -12,4 +12,5 @@ public class User : BaseModel
     public ICollection<HostelListing> Listings { get; set; } = new List<HostelListing>();
     public ICollection<InteractionEvent> InteractionEvents { get; set; } = new List<InteractionEvent>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<HostelReview> HostelReviews { get; set; } = new List<HostelReview>();
 }

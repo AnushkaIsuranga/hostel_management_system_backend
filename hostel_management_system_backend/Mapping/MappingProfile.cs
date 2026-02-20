@@ -37,5 +37,11 @@ public sealed class MappingProfile : Profile
         // HostelAmenity
         CreateMap<HostelAmenity, HostelAmenityReadDto>();
         CreateMap<HostelAmenityCreateDto, HostelAmenity>();
+
+        // HostelReview
+        CreateMap<HostelReview, HostelReviewReadDto>()
+            .ForCtorParam("UserFullName", opt => opt.MapFrom(src => src.User.FullName));
+        CreateMap<HostelReviewCreateDto, HostelReview>();
+        CreateMap<HostelReviewUpdateDto, HostelReview>();
     }
 }

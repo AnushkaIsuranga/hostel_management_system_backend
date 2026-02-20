@@ -20,4 +20,5 @@ public class Hostel : BaseModel
     public ICollection<HostelListing> Listings { get; set; } = new List<HostelListing>();
     public ICollection<HostelAmenity> HostelAmenities { get; set; } = new List<HostelAmenity>();
     public ICollection<InteractionEvent> InteractionEvents { get; set; } = new List<InteractionEvent>();
+    public ICollection<HostelReview> Reviews { get; set; } = new List<HostelReview>();
 }
