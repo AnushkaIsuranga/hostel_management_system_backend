@@ -32,6 +32,7 @@ builder.Services.AddScoped<IAmenitiesService, AmenitiesService>();
 builder.Services.AddScoped<IHostelListingsService, HostelListingsService>();
 builder.Services.AddScoped<IInteractionEventsService, InteractionEventsService>();
 builder.Services.AddScoped<IHostelAmenitiesService, HostelAmenitiesService>();
+builder.Services.AddScoped<IHostelReviewsService, HostelReviewsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<JwtService>();
 

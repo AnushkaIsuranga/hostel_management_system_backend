@@ -15,6 +15,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<InteractionEvent> InteractionEvents => Set<InteractionEvent>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<HostelReview> HostelReviews => Set<HostelReview>();
 
     // Join tables
     public DbSet<HostelAmenity> HostelAmenities => Set<HostelAmenity>();
@@ -33,6 +34,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Amenity>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<InteractionEvent>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => !e.User.IsDeleted);
+        modelBuilder.Entity<HostelReview>().HasQueryFilter(e => !e.IsDeleted);
 
         // --------------------------------------------------
         // User
@@ -199,6 +201,38 @@ public class ApplicationDbContext : DbContext
                 .WithMany(h => h.InteractionEvents)
                 .HasForeignKey(i => i.HostelId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --------------------------------------------------
+        // HostelReview
+        // --------------------------------------------------
+        modelBuilder.Entity<HostelReview>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Rating)
+                .IsRequired();
+
+            entity.Property(r => r.Comment)
+                .HasMaxLength(1000);
+
+            entity.HasCheckConstraint(
+                "CK_HostelReviews_Rating_Range",
+                "[Rating] >= 1 AND [Rating] <= 5");
+
+            entity.HasIndex(r => r.HostelId);
+            entity.HasIndex(r => new { r.HostelId, r.UserId })
+                .IsUnique();
+
+            entity.HasOne(r => r.Hostel)
+                .WithMany(h => h.Reviews)
+                .HasForeignKey(r => r.HostelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(r => r.User)
+                .WithMany(u => u.HostelReviews)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
