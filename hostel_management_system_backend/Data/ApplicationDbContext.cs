@@ -14,6 +14,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<Amenity> Amenities => Set<Amenity>();
     public DbSet<InteractionEvent> InteractionEvents => Set<InteractionEvent>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     // Join tables
     public DbSet<HostelAmenity> HostelAmenities => Set<HostelAmenity>();
@@ -31,6 +32,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Room>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<Amenity>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<InteractionEvent>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => !e.User.IsDeleted);
 
         // --------------------------------------------------
         // User
@@ -47,8 +49,37 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(200)
                 .IsRequired();
 
+            entity.Property(u => u.PasswordHash)
+                .HasMaxLength(500)
+                .IsRequired();
+
             entity.Property(u => u.PhoneNumber)
                 .HasMaxLength(20);
+
+            entity.Property(u => u.LastActivityAt)
+                .IsRequired();
+        });
+
+        // --------------------------------------------------
+        // RefreshToken
+        // --------------------------------------------------
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Token)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.HasIndex(r => r.Token)
+                .IsUnique();
+
+            entity.HasIndex(r => new { r.UserId, r.Revoked });
+
+            entity.HasOne(r => r.User)
+                .WithMany(u => u.RefreshTokens)
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // --------------------------------------------------
@@ -62,6 +93,10 @@ public class ApplicationDbContext : DbContext
 
             entity.Property(h => h.City)
                 .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(h => h.LocationUrl)
+                .HasMaxLength(500)
                 .IsRequired();
 
             entity.Property(h => h.MinPrice)

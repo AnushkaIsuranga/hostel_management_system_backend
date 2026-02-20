@@ -7,8 +7,7 @@ public sealed record HostelReadDto(
     decimal MinPrice,
     decimal MaxPrice,
     string GenderPolicy,
-    double Latitude,
-    double Longitude,
+    string LocationUrl,
     HostelStatus Status,
     DateTime CreatedAt,
     DateTime? UpdatedAt
@@ -22,8 +21,7 @@ public sealed record HostelCreateDto(
     decimal MinPrice,
     decimal MaxPrice,
     string GenderPolicy,
-    double Latitude,
-    double Longitude,
+    string LocationUrl,
     HostelStatus Status
 );
 
@@ -35,7 +33,6 @@ public sealed record HostelUpdateDto(
     decimal MinPrice,
     decimal MaxPrice,
     string GenderPolicy,
-    double Latitude,
-    double Longitude,
+    string LocationUrl,
     HostelStatus Status
 );

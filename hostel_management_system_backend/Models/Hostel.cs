@@ -11,8 +11,7 @@ public class Hostel : BaseModel
 
     public string GenderPolicy { get; set; } = string.Empty;
 
-    public double Latitude { get; set; }
-    public double Longitude { get; set; }
+    public string LocationUrl { get; set; } = string.Empty;
 
     public HostelStatus Status { get; set; }
 
