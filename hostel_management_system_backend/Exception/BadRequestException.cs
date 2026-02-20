@@ -1,7 +1,10 @@
-﻿namespace POS_Backend.Exceptions
+﻿namespace hostel_management_system_backend.Exceptions;
+
+public sealed class BadRequestException : ApiException
 {
-    public class BadRequestException : Exception
+    public BadRequestException(string message, string? errorCode = null, Exception? innerException = null)
+        : base(StatusCodes.Status400BadRequest, message, errorCode, innerException)
     {
-        public BadRequestException(string message) : base(message) { }
     }
 }
+

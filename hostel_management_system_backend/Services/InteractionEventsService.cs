@@ -1,4 +1,5 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
 
 public interface IInteractionEventsService
 {
@@ -29,7 +30,10 @@ public sealed class InteractionEventsService : IInteractionEventsService
     public async Task<InteractionEventReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var evt = await _repo.GetByIdAsNoTrackingAsync(id, cancellationToken);
-        return evt is null ? null : _mapper.Map<InteractionEventReadDto>(evt);
+        if (evt is null)
+            throw new NotFoundException("Interaction event not found.");
+
+        return _mapper.Map<InteractionEventReadDto>(evt);
     }
 
     public async Task<InteractionEventReadDto> CreateAsync(InteractionEventCreateDto dto, CancellationToken cancellationToken)
@@ -48,7 +52,7 @@ public sealed class InteractionEventsService : IInteractionEventsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return null;
+            throw new NotFoundException("Interaction event not found.");
 
         _mapper.Map(dto, entity);
         entity.UpdatedAt = DateTime.UtcNow;
@@ -60,7 +64,7 @@ public sealed class InteractionEventsService : IInteractionEventsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("Interaction event not found.");
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

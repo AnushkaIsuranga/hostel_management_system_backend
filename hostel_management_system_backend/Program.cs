@@ -69,7 +69,6 @@ await SeedDefaultAdminAsync(app);
 // For debugging, enable swagger in Development (or remove the if-check while troubleshooting)
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -77,6 +76,8 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger"; // default: swagger is at /swagger; set to string.Empty to serve at root
     });
 }
+
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

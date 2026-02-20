@@ -67,11 +67,11 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(r => r.Id);
 
-            entity.Property(r => r.Token)
-                .HasMaxLength(200)
+            entity.Property(r => r.TokenHash)
+                .HasMaxLength(64)
                 .IsRequired();
 
-            entity.HasIndex(r => r.Token)
+            entity.HasIndex(r => r.TokenHash)
                 .IsUnique();
 
             entity.HasIndex(r => new { r.UserId, r.Revoked });

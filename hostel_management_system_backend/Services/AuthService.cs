@@ -1,5 +1,6 @@
 using Isopoh.Cryptography.Argon2;
 using Microsoft.EntityFrameworkCore;
+using hostel_management_system_backend.Exceptions;
 
 public interface IAuthService
 {
@@ -28,24 +29,25 @@ public sealed class AuthService : IAuthService
 
         if (user is null)
         {
-            return null;
+            throw new UnauthorizedException("Invalid email or password.");
         }
 
         if (!Argon2.Verify(user.PasswordHash, dto.Password))
         {
-            return null;
+            throw new UnauthorizedException("Invalid email or password.");
         }
 
         user.LastActivityAt = DateTime.UtcNow;
 
         var accessToken = _jwtService.GenerateAccessToken(user);
         var refreshTokenValue = _jwtService.GenerateRefreshToken();
+        var refreshTokenHash = RefreshTokenHasher.Hash(refreshTokenValue);
         var refreshExpiresAt = DateTime.UtcNow.Add(GetRefreshLifetime(user.Role, dto.RememberMe));
 
         var refreshToken = new RefreshToken
         {
             UserId = user.Id,
-            Token = refreshTokenValue,
+            TokenHash = refreshTokenHash,
             ExpiresAt = refreshExpiresAt,
             RememberMe = dto.RememberMe,
             Revoked = false,
@@ -70,13 +72,20 @@ public sealed class AuthService : IAuthService
 
     public async Task<AuthTokenIssueResult?> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            throw new UnauthorizedException("Refresh token is missing.");
+        }
+
+        var refreshTokenHash = RefreshTokenHasher.Hash(refreshToken);
+
         var tokenEntity = await _dbContext.RefreshTokens
             .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.Token == refreshToken, cancellationToken);
+            .FirstOrDefaultAsync(x => x.TokenHash == refreshTokenHash, cancellationToken);
 
         if (tokenEntity is null || tokenEntity.Revoked || tokenEntity.ExpiresAt <= DateTime.UtcNow)
         {
-            return null;
+            throw new UnauthorizedException("Session expired. Please log in again.");
         }
 
         if (tokenEntity.User.Role == UserRole.Admin)
@@ -87,19 +96,20 @@ public sealed class AuthService : IAuthService
             {
                 tokenEntity.Revoked = true;
                 await _dbContext.SaveChangesAsync(cancellationToken);
-                return null;
+                throw new UnauthorizedException("Session expired due to inactivity. Please log in again.");
             }
         }
 
         tokenEntity.Revoked = true;
 
         var newRefreshTokenValue = _jwtService.GenerateRefreshToken();
+        var newRefreshTokenHash = RefreshTokenHasher.Hash(newRefreshTokenValue);
         var newRefreshExpiresAt = DateTime.UtcNow.Add(GetRefreshLifetime(tokenEntity.User.Role, tokenEntity.RememberMe));
 
         var newTokenEntity = new RefreshToken
         {
             UserId = tokenEntity.UserId,
-            Token = newRefreshTokenValue,
+            TokenHash = newRefreshTokenHash,
             ExpiresAt = newRefreshExpiresAt,
             RememberMe = tokenEntity.RememberMe,
             Revoked = false,
@@ -126,8 +136,15 @@ public sealed class AuthService : IAuthService
 
     public async Task LogoutAsync(string refreshToken, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return;
+        }
+
+        var refreshTokenHash = RefreshTokenHasher.Hash(refreshToken);
+
         var tokenEntity = await _dbContext.RefreshTokens
-            .FirstOrDefaultAsync(x => x.Token == refreshToken && !x.Revoked, cancellationToken);
+            .FirstOrDefaultAsync(x => x.TokenHash == refreshTokenHash && !x.Revoked, cancellationToken);
 
         if (tokenEntity is null)
         {

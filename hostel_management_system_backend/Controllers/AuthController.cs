@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using hostel_management_system_backend.Exceptions;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -18,11 +19,8 @@ public sealed class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<AuthTokensResponseDto>> Login([FromBody] LoginRequestDto dto, CancellationToken cancellationToken)
     {
-        var result = await _authService.LoginAsync(dto, cancellationToken);
-        if (result is null)
-        {
-            return Unauthorized("Invalid email or password.");
-        }
+        var result = await _authService.LoginAsync(dto, cancellationToken)
+            ?? throw new UnauthorizedException("Invalid email or password.");
 
         WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
         return Ok(result.Response);
@@ -38,11 +36,16 @@ public sealed class AuthController : ControllerBase
             return Unauthorized("Refresh token is missing.");
         }
 
-        var result = await _authService.RefreshAsync(refreshToken, cancellationToken);
-        if (result is null)
+        AuthTokenIssueResult result;
+        try
+        {
+            result = await _authService.RefreshAsync(refreshToken, cancellationToken)
+                ?? throw new UnauthorizedException("Session expired. Please log in again.");
+        }
+        catch (UnauthorizedException)
         {
             DeleteRefreshCookie();
-            return Unauthorized("Session expired. Please log in again.");
+            throw;
         }
 
         WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt);

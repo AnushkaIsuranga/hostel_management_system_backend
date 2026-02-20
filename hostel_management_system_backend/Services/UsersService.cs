@@ -1,4 +1,6 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 public interface IUsersService
 {
@@ -29,7 +31,10 @@ public sealed class UsersService : IUsersService
     public async Task<UserReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var user = await _repo.GetByIdAsNoTrackingAsync(id, cancellationToken);
-        return user is null ? null : _mapper.Map<UserReadDto>(user);
+        if (user is null)
+            throw new NotFoundException("User not found.");
+
+        return _mapper.Map<UserReadDto>(user);
     }
 
     public async Task<UserReadDto> CreateAsync(UserCreateDto dto, CancellationToken cancellationToken)
@@ -40,7 +45,15 @@ public sealed class UsersService : IUsersService
         entity.IsDeleted = false;
 
         await _repo.AddAsync(entity, cancellationToken);
-        await _repo.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new ConflictException("A user with the same email already exists.", "user_email_conflict", ex);
+        }
+
         return _mapper.Map<UserReadDto>(entity);
     }
 
@@ -48,7 +61,7 @@ public sealed class UsersService : IUsersService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return null;
+            throw new NotFoundException("User not found.");
 
         _mapper.Map(dto, entity);
         entity.UpdatedAt = DateTime.UtcNow;
@@ -60,7 +73,7 @@ public sealed class UsersService : IUsersService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("User not found.");
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;
