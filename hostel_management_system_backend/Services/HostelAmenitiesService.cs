@@ -1,4 +1,5 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
 
 public interface IHostelAmenitiesService
 {
@@ -35,7 +36,7 @@ public sealed class HostelAmenitiesService : IHostelAmenitiesService
     {
         var exists = await _repo.ExistsAsync(dto.HostelId, dto.AmenityId, cancellationToken);
         if (exists)
-            return (false, null);
+            throw new ConflictException("Hostel amenity already exists.", "hostel_amenity_conflict");
 
         var entity = _mapper.Map<HostelAmenity>(dto);
         await _repo.AddAsync(entity, cancellationToken);
@@ -47,7 +48,7 @@ public sealed class HostelAmenitiesService : IHostelAmenitiesService
     {
         var entity = await _repo.GetByKeyForDeleteAsync(hostelId, amenityId, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("Hostel amenity link not found.");
 
         _repo.Remove(entity);
         await _repo.SaveChangesAsync(cancellationToken);

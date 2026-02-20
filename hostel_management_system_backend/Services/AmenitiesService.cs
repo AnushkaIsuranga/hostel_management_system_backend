@@ -1,4 +1,6 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 public interface IAmenitiesService
 {
@@ -29,7 +31,10 @@ public sealed class AmenitiesService : IAmenitiesService
     public async Task<AmenityReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var amenity = await _repo.GetByIdAsNoTrackingAsync(id, cancellationToken);
-        return amenity is null ? null : _mapper.Map<AmenityReadDto>(amenity);
+        if (amenity is null)
+            throw new NotFoundException("Amenity not found.");
+
+        return _mapper.Map<AmenityReadDto>(amenity);
     }
 
     public async Task<AmenityReadDto> CreateAsync(AmenityCreateDto dto, CancellationToken cancellationToken)
@@ -40,7 +45,15 @@ public sealed class AmenitiesService : IAmenitiesService
         entity.IsDeleted = false;
 
         await _repo.AddAsync(entity, cancellationToken);
-        await _repo.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new ConflictException("An amenity with the same name already exists.", "amenity_name_conflict", ex);
+        }
+
         return _mapper.Map<AmenityReadDto>(entity);
     }
 
@@ -48,7 +61,7 @@ public sealed class AmenitiesService : IAmenitiesService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return null;
+            throw new NotFoundException("Amenity not found.");
 
         _mapper.Map(dto, entity);
         entity.UpdatedAt = DateTime.UtcNow;
@@ -60,7 +73,7 @@ public sealed class AmenitiesService : IAmenitiesService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("Amenity not found.");
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

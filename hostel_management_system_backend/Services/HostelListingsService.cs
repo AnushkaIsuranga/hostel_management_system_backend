@@ -1,4 +1,6 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 public interface IHostelListingsService
 {
@@ -29,7 +31,10 @@ public sealed class HostelListingsService : IHostelListingsService
     public async Task<HostelListingReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var listing = await _repo.GetByIdAsNoTrackingAsync(id, cancellationToken);
-        return listing is null ? null : _mapper.Map<HostelListingReadDto>(listing);
+        if (listing is null)
+            throw new NotFoundException("Listing not found.");
+
+        return _mapper.Map<HostelListingReadDto>(listing);
     }
 
     public async Task<HostelListingReadDto> CreateAsync(HostelListingCreateDto dto, CancellationToken cancellationToken)
@@ -40,7 +45,15 @@ public sealed class HostelListingsService : IHostelListingsService
         entity.IsDeleted = false;
 
         await _repo.AddAsync(entity, cancellationToken);
-        await _repo.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new ConflictException("A listing already exists for this hostel and owner.", "listing_conflict", ex);
+        }
+
         return _mapper.Map<HostelListingReadDto>(entity);
     }
 
@@ -48,7 +61,7 @@ public sealed class HostelListingsService : IHostelListingsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return null;
+            throw new NotFoundException("Listing not found.");
 
         _mapper.Map(dto, entity);
         entity.UpdatedAt = DateTime.UtcNow;
@@ -60,7 +73,7 @@ public sealed class HostelListingsService : IHostelListingsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("Listing not found.");
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

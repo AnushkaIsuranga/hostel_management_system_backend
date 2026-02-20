@@ -1,4 +1,6 @@
 using AutoMapper;
+using hostel_management_system_backend.Exceptions;
+using Microsoft.EntityFrameworkCore;
 
 public interface IRoomsService
 {
@@ -29,7 +31,10 @@ public sealed class RoomsService : IRoomsService
     public async Task<RoomReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken)
     {
         var room = await _repo.GetByIdAsNoTrackingAsync(id, cancellationToken);
-        return room is null ? null : _mapper.Map<RoomReadDto>(room);
+        if (room is null)
+            throw new NotFoundException("Room not found.");
+
+        return _mapper.Map<RoomReadDto>(room);
     }
 
     public async Task<RoomReadDto> CreateAsync(RoomCreateDto dto, CancellationToken cancellationToken)
@@ -40,7 +45,15 @@ public sealed class RoomsService : IRoomsService
         entity.IsDeleted = false;
 
         await _repo.AddAsync(entity, cancellationToken);
-        await _repo.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new ConflictException("A room with the same unique fields already exists.", "room_conflict", ex);
+        }
+
         return _mapper.Map<RoomReadDto>(entity);
     }
 
@@ -48,7 +61,7 @@ public sealed class RoomsService : IRoomsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return null;
+            throw new NotFoundException("Room not found.");
 
         _mapper.Map(dto, entity);
         entity.UpdatedAt = DateTime.UtcNow;
@@ -60,7 +73,7 @@ public sealed class RoomsService : IRoomsService
     {
         var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
         if (entity is null)
-            return false;
+            throw new NotFoundException("Room not found.");
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;

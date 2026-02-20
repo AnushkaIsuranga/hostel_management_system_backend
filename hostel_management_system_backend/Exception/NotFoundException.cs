@@ -1,7 +1,10 @@
-﻿namespace POS_Backend.Exceptions
+﻿namespace hostel_management_system_backend.Exceptions;
+
+public sealed class NotFoundException : ApiException
 {
-    public class NotFoundException : Exception
+    public NotFoundException(string message, string? errorCode = null, Exception? innerException = null)
+        : base(StatusCodes.Status404NotFound, message, errorCode, innerException)
     {
-        public NotFoundException(string message) : base(message) { }
     }
 }
+
