@@ -62,7 +62,8 @@ public sealed class HostelReviewsController : ControllerBase
 
     private Guid GetUserIdOrThrow()
     {
-        var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+        var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+            ?? User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(sub, out var userId))
         {
             throw new UnauthorizedException("Invalid access token.", "invalid_token");

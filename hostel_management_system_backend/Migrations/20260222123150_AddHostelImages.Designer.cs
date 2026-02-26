@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace hostel_management_system_backend.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260222123150_AddHostelImages")]
+    partial class AddHostelImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,9 +81,6 @@ namespace hostel_management_system_backend.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsVerified")
-                        .HasColumnType("bit");
-
                     b.Property<string>("LocationUrl")
                         .IsRequired()
                         .HasMaxLength(500)
@@ -99,35 +99,17 @@ namespace hostel_management_system_backend.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("VerificationStatus")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("VerifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("VerifiedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.HasKey("Id");
 
                     b.HasIndex("City");
 
-                    b.HasIndex("OwnerId");
-
                     b.HasIndex("Status");
-
-                    b.HasIndex("VerificationStatus");
-
-                    b.HasIndex("VerifiedByAdminId");
 
                     b.ToTable("Hostels");
                 });
@@ -153,32 +135,15 @@ namespace hostel_management_system_backend.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("int");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
 
                     b.Property<Guid>("HostelId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ImageUrl")
+                    b.Property<string>("Image")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
@@ -189,8 +154,6 @@ namespace hostel_management_system_backend.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("HostelId");
-
-                    b.HasIndex("HostelId", "DisplayOrder");
 
                     b.ToTable("HostelImages");
                 });
@@ -270,93 +233,6 @@ namespace hostel_management_system_backend.Migrations
                         {
                             t.HasCheckConstraint("CK_HostelReviews_Rating_Range", "[Rating] >= 1 AND [Rating] <= 5");
                         });
-                });
-
-            modelBuilder.Entity("HostelSubscription", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("ExpiryDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("HostelId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime?>("LastReminderSentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpiryDate");
-
-                    b.HasIndex("HostelId")
-                        .IsUnique();
-
-                    b.ToTable("HostelSubscriptions");
-                });
-
-            modelBuilder.Entity("HostelVerificationRequest", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("AdminNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("HostelId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("RequestedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("ReviewedByAdminId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("HostelId");
-
-                    b.HasIndex("RequestedByUserId");
-
-                    b.HasIndex("ReviewedByAdminId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("HostelVerificationRequests");
                 });
 
             modelBuilder.Entity("InteractionEvent", b =>
@@ -527,20 +403,6 @@ namespace hostel_management_system_backend.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("Hostel", b =>
-                {
-                    b.HasOne("User", null)
-                        .WithMany("OwnedHostels")
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("User", null)
-                        .WithMany()
-                        .HasForeignKey("VerifiedByAdminId")
-                        .OnDelete(DeleteBehavior.SetNull);
-                });
-
             modelBuilder.Entity("HostelAmenity", b =>
                 {
                     b.HasOne("Amenity", "Amenity")
@@ -609,39 +471,6 @@ namespace hostel_management_system_backend.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("HostelSubscription", b =>
-                {
-                    b.HasOne("Hostel", "Hostel")
-                        .WithOne("Subscription")
-                        .HasForeignKey("HostelSubscription", "HostelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Hostel");
-                });
-
-            modelBuilder.Entity("HostelVerificationRequest", b =>
-                {
-                    b.HasOne("Hostel", "Hostel")
-                        .WithMany("VerificationRequests")
-                        .HasForeignKey("HostelId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("User", null)
-                        .WithMany()
-                        .HasForeignKey("RequestedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("User", null)
-                        .WithMany()
-                        .HasForeignKey("ReviewedByAdminId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Hostel");
-                });
-
             modelBuilder.Entity("InteractionEvent", b =>
                 {
                     b.HasOne("Hostel", "Hostel")
@@ -699,10 +528,6 @@ namespace hostel_management_system_backend.Migrations
                     b.Navigation("Reviews");
 
                     b.Navigation("Rooms");
-
-                    b.Navigation("Subscription");
-
-                    b.Navigation("VerificationRequests");
                 });
 
             modelBuilder.Entity("User", b =>
@@ -712,8 +537,6 @@ namespace hostel_management_system_backend.Migrations
                     b.Navigation("InteractionEvents");
 
                     b.Navigation("Listings");
-
-                    b.Navigation("OwnedHostels");
 
                     b.Navigation("RefreshTokens");
                 });

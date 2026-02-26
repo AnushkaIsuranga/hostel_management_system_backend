@@ -11,6 +11,27 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("DefaultCors", policy =>
+    {
+        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+
+        if (allowedOrigins is { Length: > 0 })
+        {
+            policy.WithOrigins(allowedOrigins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                .AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+        }
+    });
+});
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -23,6 +44,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // Repositories
 builder.Services.AddScoped(typeof(ICrudRepository<>), typeof(CrudRepository<>));
 builder.Services.AddScoped<IHostelAmenityRepository, HostelAmenityRepository>();
+builder.Services.AddScoped<IHostelRepository, HostelRepository>();
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IHostelReviewsRepository, HostelReviewsRepository>();
+builder.Services.AddScoped<IHostelVerificationRepository, HostelVerificationRepository>();
+builder.Services.AddScoped<IHostelSubscriptionRepository, HostelSubscriptionRepository>();
+builder.Services.AddScoped<IHostelImageRepository, HostelImageRepository>();
 
 // Services
 builder.Services.AddScoped<IUsersService, UsersService>();
@@ -34,7 +61,13 @@ builder.Services.AddScoped<IInteractionEventsService, InteractionEventsService>(
 builder.Services.AddScoped<IHostelAmenitiesService, HostelAmenitiesService>();
 builder.Services.AddScoped<IHostelReviewsService, HostelReviewsService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IHostelVerificationService, HostelVerificationService>();
+builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+builder.Services.AddScoped<IHostelImagesService, HostelImagesService>();
+builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddHostedService<SubscriptionMonitorService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
@@ -81,6 +114,8 @@ if (app.Environment.IsDevelopment())
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseCors("DefaultCors");
 app.UseAuthentication();
 app.UseMiddleware<ActivityTrackingMiddleware>();
 app.UseAuthorization();

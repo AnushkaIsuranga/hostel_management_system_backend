@@ -9,6 +9,7 @@ public class User : BaseModel
     public DateTime LastActivityAt { get; set; } = DateTime.UtcNow;
 
     // Navigation
+    public ICollection<Hostel> OwnedHostels { get; set; } = new List<Hostel>();
     public ICollection<HostelListing> Listings { get; set; } = new List<HostelListing>();
     public ICollection<InteractionEvent> InteractionEvents { get; set; } = new List<InteractionEvent>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

@@ -10,7 +10,8 @@ public sealed class MappingProfile : Profile
         CreateMap<UserUpdateDto, User>();
 
         // Hostel
-        CreateMap<Hostel, HostelReadDto>();
+        CreateMap<Hostel, HostelReadDto>()
+            .ForCtorParam("Images", opt => opt.MapFrom(src => src.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl).ToList()));
         CreateMap<HostelCreateDto, Hostel>();
         CreateMap<HostelUpdateDto, Hostel>();
 
@@ -43,5 +44,14 @@ public sealed class MappingProfile : Profile
             .ForCtorParam("UserFullName", opt => opt.MapFrom(src => src.User.FullName));
         CreateMap<HostelReviewCreateDto, HostelReview>();
         CreateMap<HostelReviewUpdateDto, HostelReview>();
+
+        // HostelVerificationRequest
+        CreateMap<HostelVerificationRequest, HostelVerificationRequestReadDto>();
+
+        // HostelSubscription
+        CreateMap<HostelSubscription, HostelSubscriptionReadDto>();
+
+        // HostelImage
+        CreateMap<HostelImage, HostelImageReadDto>();
     }
 }

@@ -13,46 +13,40 @@ public interface IHostelReviewsService
 
 public sealed class HostelReviewsService : IHostelReviewsService
 {
-    private readonly ApplicationDbContext _db;
+    private readonly IHostelReviewsRepository _repo;
     private readonly IMapper _mapper;
 
-    public HostelReviewsService(ApplicationDbContext db, IMapper mapper)
+    public HostelReviewsService(IHostelReviewsRepository repo, IMapper mapper)
     {
-        _db = db;
+        _repo = repo;
         _mapper = mapper;
     }
 
     public async Task<List<HostelReviewReadDto>> GetForHostelAsync(Guid hostelId, CancellationToken cancellationToken)
     {
-        var hostelExists = await _db.Hostels.AnyAsync(h => h.Id == hostelId, cancellationToken);
+        var hostelExists = await _repo.HostelExistsAsync(hostelId, cancellationToken);
         if (!hostelExists)
         {
             throw new NotFoundException("Hostel not found.");
         }
 
-        var reviews = await _db.HostelReviews
-            .AsNoTracking()
-            .Include(r => r.User)
-            .Where(r => r.HostelId == hostelId)
-            .OrderByDescending(r => r.CreatedAt)
-            .ToListAsync(cancellationToken);
+        var reviews = await _repo.GetForHostelAsNoTrackingWithUserAsync(hostelId, cancellationToken);
 
         return _mapper.Map<List<HostelReviewReadDto>>(reviews);
     }
 
     public async Task<HostelRatingSummaryDto> GetSummaryAsync(Guid hostelId, CancellationToken cancellationToken)
     {
-        var hostelExists = await _db.Hostels.AnyAsync(h => h.Id == hostelId, cancellationToken);
+        var hostelExists = await _repo.HostelExistsAsync(hostelId, cancellationToken);
         if (!hostelExists)
         {
             throw new NotFoundException("Hostel not found.");
         }
 
-        var query = _db.HostelReviews.AsNoTracking().Where(r => r.HostelId == hostelId);
-        var count = await query.CountAsync(cancellationToken);
+        var count = await _repo.CountForHostelAsync(hostelId, cancellationToken);
         var avg = count == 0
             ? 0.0
-            : await query.AverageAsync(r => (double)r.Rating, cancellationToken);
+            : await _repo.AverageRatingForHostelAsync(hostelId, cancellationToken);
 
         return new HostelRatingSummaryDto(hostelId, Math.Round(avg, 2), count);
     }
@@ -61,13 +55,13 @@ public sealed class HostelReviewsService : IHostelReviewsService
     {
         Validate(dto.Rating, dto.Comment);
 
-        var hostelExists = await _db.Hostels.AnyAsync(h => h.Id == hostelId, cancellationToken);
+        var hostelExists = await _repo.HostelExistsAsync(hostelId, cancellationToken);
         if (!hostelExists)
         {
             throw new NotFoundException("Hostel not found.");
         }
 
-        var userExists = await _db.Users.AnyAsync(u => u.Id == userId, cancellationToken);
+        var userExists = await _repo.UserExistsAsync(userId, cancellationToken);
         if (!userExists)
         {
             throw new UnauthorizedException("User is not valid.");
@@ -84,21 +78,18 @@ public sealed class HostelReviewsService : IHostelReviewsService
             IsDeleted = false
         };
 
-        _db.HostelReviews.Add(entity);
+        await _repo.AddAsync(entity, cancellationToken);
 
         try
         {
-            await _db.SaveChangesAsync(cancellationToken);
+            await _repo.SaveChangesAsync(cancellationToken);
         }
         catch (DbUpdateException ex)
         {
             throw new ConflictException("You have already reviewed this hostel.", "review_conflict", ex);
         }
 
-        var created = await _db.HostelReviews
-            .AsNoTracking()
-            .Include(r => r.User)
-            .FirstAsync(r => r.Id == entity.Id, cancellationToken);
+        var created = await _repo.GetByIdAsNoTrackingWithUserAsync(entity.Id, cancellationToken);
 
         return _mapper.Map<HostelReviewReadDto>(created);
     }
@@ -107,9 +98,7 @@ public sealed class HostelReviewsService : IHostelReviewsService
     {
         Validate(dto.Rating, dto.Comment);
 
-        var entity = await _db.HostelReviews
-            .Include(r => r.User)
-            .FirstOrDefaultAsync(r => r.Id == reviewId && r.HostelId == hostelId, cancellationToken);
+        var entity = await _repo.GetForUpdateWithUserAsync(hostelId, reviewId, cancellationToken);
 
         if (entity is null)
         {
@@ -125,20 +114,16 @@ public sealed class HostelReviewsService : IHostelReviewsService
         entity.Comment = string.IsNullOrWhiteSpace(dto.Comment) ? null : dto.Comment.Trim();
         entity.UpdatedAt = DateTime.UtcNow;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
 
-        var updated = await _db.HostelReviews
-            .AsNoTracking()
-            .Include(r => r.User)
-            .FirstAsync(r => r.Id == entity.Id, cancellationToken);
+        var updated = await _repo.GetByIdAsNoTrackingWithUserAsync(entity.Id, cancellationToken);
 
         return _mapper.Map<HostelReviewReadDto>(updated);
     }
 
     public async Task DeleteAsync(Guid hostelId, Guid reviewId, Guid userId, bool isAdmin, CancellationToken cancellationToken)
     {
-        var entity = await _db.HostelReviews
-            .FirstOrDefaultAsync(r => r.Id == reviewId && r.HostelId == hostelId, cancellationToken);
+        var entity = await _repo.GetForDeleteAsync(hostelId, reviewId, cancellationToken);
 
         if (entity is null)
         {
@@ -152,7 +137,7 @@ public sealed class HostelReviewsService : IHostelReviewsService
 
         entity.IsDeleted = true;
         entity.UpdatedAt = DateTime.UtcNow;
-        await _db.SaveChangesAsync(cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
     }
 
     private static void Validate(int rating, string? comment)

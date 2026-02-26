@@ -16,6 +16,9 @@ public class ApplicationDbContext : DbContext
     public DbSet<InteractionEvent> InteractionEvents => Set<InteractionEvent>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<HostelReview> HostelReviews => Set<HostelReview>();
+    public DbSet<HostelImage> HostelImages => Set<HostelImage>();
+    public DbSet<HostelVerificationRequest> HostelVerificationRequests => Set<HostelVerificationRequest>();
+    public DbSet<HostelSubscription> HostelSubscriptions => Set<HostelSubscription>();
 
     // Join tables
     public DbSet<HostelAmenity> HostelAmenities => Set<HostelAmenity>();
@@ -35,6 +38,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<InteractionEvent>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<RefreshToken>().HasQueryFilter(e => !e.User.IsDeleted);
         modelBuilder.Entity<HostelReview>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<HostelImage>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<HostelVerificationRequest>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<HostelSubscription>().HasQueryFilter(e => !e.IsDeleted);
 
         // --------------------------------------------------
         // User
@@ -93,6 +99,15 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(200)
                 .IsRequired();
 
+            entity.Property(h => h.OwnerId)
+                .IsRequired();
+
+            entity.Property(h => h.VerificationStatus)
+                .IsRequired();
+
+            entity.Property(h => h.IsVerified)
+                .IsRequired();
+
             entity.Property(h => h.City)
                 .HasMaxLength(100)
                 .IsRequired();
@@ -109,6 +124,105 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(h => h.City);
             entity.HasIndex(h => h.Status);
+            entity.HasIndex(h => h.OwnerId);
+            entity.HasIndex(h => h.VerificationStatus);
+
+            entity.HasOne<User>()
+                .WithMany(u => u.OwnedHostels)
+                .HasForeignKey(h => h.OwnerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(h => h.VerifiedByAdminId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --------------------------------------------------
+        // HostelVerificationRequest
+        // --------------------------------------------------
+        modelBuilder.Entity<HostelVerificationRequest>(entity =>
+        {
+            entity.Property(v => v.Status)
+                .IsRequired();
+
+            entity.Property(v => v.AdminNotes)
+                .HasMaxLength(1000);
+
+            entity.HasIndex(v => v.HostelId);
+            entity.HasIndex(v => v.Status);
+
+            entity.HasOne(v => v.Hostel)
+                .WithMany(h => h.VerificationRequests)
+                .HasForeignKey(v => v.HostelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(v => v.RequestedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(v => v.ReviewedByAdminId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --------------------------------------------------
+        // HostelSubscription
+        // --------------------------------------------------
+        modelBuilder.Entity<HostelSubscription>(entity =>
+        {
+            entity.Property(s => s.StartDate)
+                .IsRequired();
+
+            entity.Property(s => s.ExpiryDate)
+                .IsRequired();
+
+            entity.Property(s => s.IsActive)
+                .IsRequired();
+
+            entity.HasIndex(s => s.HostelId)
+                .IsUnique();
+
+            entity.HasIndex(s => s.ExpiryDate);
+
+            entity.HasOne(s => s.Hostel)
+                .WithOne(h => h.Subscription)
+                .HasForeignKey<HostelSubscription>(s => s.HostelId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // --------------------------------------------------
+        // HostelImage
+        // --------------------------------------------------
+        modelBuilder.Entity<HostelImage>(entity =>
+        {
+            entity.Property(i => i.FileName)
+                .HasMaxLength(255)
+                .IsRequired();
+
+            entity.Property(i => i.ContentType)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(i => i.FileSize)
+                .IsRequired();
+
+            entity.Property(i => i.ImageUrl)
+                .HasMaxLength(1000)
+                .IsRequired();
+
+            entity.Property(i => i.DisplayOrder)
+                .IsRequired();
+
+            entity.HasIndex(i => i.HostelId);
+            entity.HasIndex(i => new { i.HostelId, i.DisplayOrder });
+
+            entity.HasOne(i => i.Hostel)
+                .WithMany(h => h.Images)
+                .HasForeignKey(i => i.HostelId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // --------------------------------------------------
