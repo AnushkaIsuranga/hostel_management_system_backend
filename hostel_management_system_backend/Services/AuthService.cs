@@ -1,5 +1,4 @@
 using Isopoh.Cryptography.Argon2;
-using Microsoft.EntityFrameworkCore;
 using hostel_management_system_backend.Exceptions;
 
 public interface IAuthService
@@ -11,21 +10,20 @@ public interface IAuthService
 
 public sealed class AuthService : IAuthService
 {
-    private readonly ApplicationDbContext _dbContext;
+    private readonly IAuthRepository _repo;
     private readonly JwtService _jwtService;
     private readonly IConfiguration _configuration;
 
-    public AuthService(ApplicationDbContext dbContext, JwtService jwtService, IConfiguration configuration)
+    public AuthService(IAuthRepository repo, JwtService jwtService, IConfiguration configuration)
     {
-        _dbContext = dbContext;
+        _repo = repo;
         _jwtService = jwtService;
         _configuration = configuration;
     }
 
     public async Task<AuthTokenIssueResult?> LoginAsync(LoginRequestDto dto, CancellationToken cancellationToken)
     {
-        var user = await _dbContext.Users
-            .FirstOrDefaultAsync(x => x.Email == dto.Email, cancellationToken);
+        var user = await _repo.GetUserByEmailForUpdateAsync(dto.Email, cancellationToken);
 
         if (user is null)
         {
@@ -54,8 +52,8 @@ public sealed class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         };
 
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _repo.AddRefreshTokenAsync(refreshToken, cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
 
         return new AuthTokenIssueResult(
             new AuthTokensResponseDto(
@@ -79,9 +77,7 @@ public sealed class AuthService : IAuthService
 
         var refreshTokenHash = RefreshTokenHasher.Hash(refreshToken);
 
-        var tokenEntity = await _dbContext.RefreshTokens
-            .Include(x => x.User)
-            .FirstOrDefaultAsync(x => x.TokenHash == refreshTokenHash, cancellationToken);
+        var tokenEntity = await _repo.GetRefreshTokenWithUserForUpdateAsync(refreshTokenHash, cancellationToken);
 
         if (tokenEntity is null || tokenEntity.Revoked || tokenEntity.ExpiresAt <= DateTime.UtcNow)
         {
@@ -95,7 +91,7 @@ public sealed class AuthService : IAuthService
             if (idleTime > TimeSpan.FromMinutes(idleTimeoutMinutes))
             {
                 tokenEntity.Revoked = true;
-                await _dbContext.SaveChangesAsync(cancellationToken);
+                await _repo.SaveChangesAsync(cancellationToken);
                 throw new UnauthorizedException("Session expired due to inactivity. Please log in again.");
             }
         }
@@ -118,8 +114,8 @@ public sealed class AuthService : IAuthService
 
         var accessToken = _jwtService.GenerateAccessToken(tokenEntity.User);
 
-        _dbContext.RefreshTokens.Add(newTokenEntity);
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _repo.AddRefreshTokenAsync(newTokenEntity, cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
 
         return new AuthTokenIssueResult(
             new AuthTokensResponseDto(
@@ -143,8 +139,7 @@ public sealed class AuthService : IAuthService
 
         var refreshTokenHash = RefreshTokenHasher.Hash(refreshToken);
 
-        var tokenEntity = await _dbContext.RefreshTokens
-            .FirstOrDefaultAsync(x => x.TokenHash == refreshTokenHash && !x.Revoked, cancellationToken);
+        var tokenEntity = await _repo.GetActiveRefreshTokenForUpdateAsync(refreshTokenHash, cancellationToken);
 
         if (tokenEntity is null)
         {
@@ -152,7 +147,7 @@ public sealed class AuthService : IAuthService
         }
 
         tokenEntity.Revoked = true;
-        await _dbContext.SaveChangesAsync(cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
     }
 
     private TimeSpan GetRefreshLifetime(UserRole role, bool rememberMe)

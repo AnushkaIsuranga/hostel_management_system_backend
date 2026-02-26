@@ -84,7 +84,7 @@ public sealed class AuthController : ControllerBase
             new CookieOptions
             {
                 HttpOnly = true,
-                Secure = true,
+                Secure = Request.IsHttps,
                 SameSite = SameSiteMode.Strict,
                 Expires = new DateTimeOffset(expiresAt)
             }
