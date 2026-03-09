@@ -15,9 +15,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultCors", policy =>
     {
-        var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
+        var allowedOrigins = ResolveAllowedOrigins(builder.Configuration);
 
-        if (allowedOrigins is { Length: > 0 })
+        if (allowedOrigins.Length > 0)
         {
             policy.WithOrigins(allowedOrigins)
                 .AllowAnyHeader()
@@ -38,8 +38,10 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "Hostel API", Version = "v1" });
 });
+
+var defaultConnection = GetRequiredConfigurationValue(builder.Configuration, "ConnectionStrings:DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnection));
 builder.Services.AddHttpClient("GoogleMapsResolver", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
@@ -79,7 +81,10 @@ builder.Services.AddHostedService<SubscriptionMonitorService>();
 builder.Services.AddHostedService<CleanupDeletedDataService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
+var jwtSecret = GetRequiredConfigurationValue(builder.Configuration, "JwtSettings:Secret");
+var jwtIssuer = GetRequiredConfigurationValue(builder.Configuration, "JwtSettings:Issuer");
+var jwtAudience = GetRequiredConfigurationValue(builder.Configuration, "JwtSettings:Audience");
+var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -96,8 +101,8 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero,
 
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(key),
         RequireExpirationTime = true
     };
@@ -144,13 +149,9 @@ static async Task SeedDefaultAdminAsync(WebApplication app)
     }
 
     var adminSection = app.Configuration.GetSection("AdminCredentials");
-    var fullName = adminSection["FullName"];
-    var email = adminSection["Email"];
-    var password = adminSection["Password"];
-
-    fullName = string.IsNullOrWhiteSpace(fullName) ? "admin123" : fullName;
-    email = string.IsNullOrWhiteSpace(email) ? "admin123@hostel.local" : email;
-    password = string.IsNullOrWhiteSpace(password) ? "admin@World123" : password;
+    var fullName = GetRequiredConfigurationValue(app.Configuration, "AdminCredentials:FullName");
+    var email = GetRequiredConfigurationValue(app.Configuration, "AdminCredentials:Email");
+    var password = GetRequiredConfigurationValue(app.Configuration, "AdminCredentials:Password");
 
     var adminUser = new User
     {
@@ -169,6 +170,31 @@ static async Task SeedDefaultAdminAsync(WebApplication app)
     await dbContext.SaveChangesAsync();
 }
 
+static string[] ResolveAllowedOrigins(IConfiguration configuration)
+{
+    var envOriginsRaw = configuration["Cors__AllowedOrigins"];
+    if (!string.IsNullOrWhiteSpace(envOriginsRaw))
+    {
+        var envOrigins = envOriginsRaw
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(origin => !string.Equals(origin, "SET_VIA_ENV", StringComparison.OrdinalIgnoreCase))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (envOrigins.Length > 0)
+        {
+            return envOrigins;
+        }
+    }
+
+    var configuredOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    return configuredOrigins
+        .Where(origin => !string.IsNullOrWhiteSpace(origin))
+        .Where(origin => !string.Equals(origin, "SET_VIA_ENV", StringComparison.OrdinalIgnoreCase))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToArray();
+}
+
 static async Task SeedDefaultUniversitiesAsync(WebApplication app)
 {
     using var scope = app.Services.CreateScope();
@@ -180,4 +206,20 @@ static async Task SeedDefaultUniversitiesAsync(WebApplication app)
     }
 
     await dbContext.SaveChangesAsync();
+}
+
+static string GetRequiredConfigurationValue(IConfiguration configuration, string key)
+{
+    var value = configuration[key];
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        throw new InvalidOperationException($"Missing required configuration value: {key}");
+    }
+
+    if (string.Equals(value, "SET_VIA_ENV", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException($"Configuration value {key} must be provided via environment variables.");
+    }
+
+    return value;
 }
