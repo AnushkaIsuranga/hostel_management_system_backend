@@ -20,3 +20,10 @@ public sealed record UserUpdateDto(
     string PhoneNumber,
     UserRole Role
 );
+
+public sealed record UserRegisterDto(
+    string FullName,
+    string Email,
+    string PhoneNumber,
+    string Password
+);

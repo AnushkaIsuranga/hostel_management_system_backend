@@ -12,6 +12,7 @@ public sealed class HostelRepository : IHostelRepository
     public Task<List<Hostel>> GetAllWithImagesAsNoTrackingAsync(CancellationToken cancellationToken)
         => _db.Hostels
             .AsNoTracking()
+            .Include(h => h.Owner)
             .Include(h => h.Images)
             .OrderByDescending(h => h.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -19,11 +20,13 @@ public sealed class HostelRepository : IHostelRepository
     public Task<Hostel?> GetByIdWithImagesAsNoTrackingAsync(Guid id, CancellationToken cancellationToken)
         => _db.Hostels
             .AsNoTracking()
+            .Include(h => h.Owner)
             .Include(h => h.Images)
             .FirstOrDefaultAsync(h => h.Id == id, cancellationToken);
 
     public Task<Hostel?> GetByIdWithImagesForUpdateAsync(Guid id, CancellationToken cancellationToken)
         => _db.Hostels
+            .Include(h => h.Owner)
             .Include(h => h.Images)
             .FirstOrDefaultAsync(h => h.Id == id, cancellationToken);
 

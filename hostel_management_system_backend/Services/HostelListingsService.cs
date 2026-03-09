@@ -76,6 +76,7 @@ public sealed class HostelListingsService : IHostelListingsService
             throw new NotFoundException("Listing not found.");
 
         entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
         await _repo.SaveChangesAsync(cancellationToken);
         return true;

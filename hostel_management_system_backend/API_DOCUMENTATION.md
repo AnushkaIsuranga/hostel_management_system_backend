@@ -1,6 +1,6 @@
 # Hostel Management System Backend API Documentation
 
-Last updated from source code: 2026-02-23
+Last updated from source code: 2026-03-08
 
 This documentation is aligned with the current implementation in:
 - `Program.cs`
@@ -45,6 +45,12 @@ This documentation is aligned with the current implementation in:
 - `POST /api/auth/login`
   - Public
   - Body: `LoginRequestDto`
+  - Returns: `AuthTokensResponseDto`
+  - Sets refresh cookie
+- `POST /api/auth/register`
+  - Public
+  - Body: `UserRegisterDto` (`fullName`, `email`, `phoneNumber`, `password`)
+  - Creates a new user account
   - Returns: `AuthTokensResponseDto`
   - Sets refresh cookie
 - `POST /api/auth/refresh`
@@ -159,26 +165,38 @@ Note: email delivery is currently logged (`ILogger`) and does not yet send via S
 
 Now includes:
 - `ownerId`
+- `ownerName`
+- `ownerEmail`
+- `ownerPhoneNumber`
 - `isVerified`
 - `verifiedAt`
 - `verifiedByAdminId`
 - `verificationStatus`
+- `latitude`
+- `longitude`
+- `googleMapsUrl`
 - `images` (`List<string>`)
 
 ### 8.2 `HostelCreateDto` / `HostelUpdateDto`
 
 Now includes:
 - `ownerId`
+- `latitude` / `longitude` (authoritative location)
+- `googleMapsUrl` (optional convenience)
 - `images` (`List<string>?`)
 
 ### 8.3 New DTOs
 
+- `UserRegisterDto`
 - `HostelVerificationRequestReadDto`
 - `ReviewVerificationRequestDto`
 - `HostelSubscriptionReadDto`
 - `UpsertHostelSubscriptionDto`
 - `HostelImageReadDto`
 - `UpdateHostelImageOrderDto`
+- `UniversityReadDto`, `UniversityCreateDto`, `UniversityUpdateDto`
+- `HostelSearchRequestDto`, `HostelSearchWeightsDto`, `HostelSearchResultDto`
+- `StudentPreferenceUpsertDto`, `StudentPreferenceReadDto`, `StudentPreferenceWeightsDto`
 
 ## 9) Endpoints
 
@@ -190,13 +208,120 @@ Now includes:
 - `PUT /api/users/{id}`
 - `DELETE /api/users/{id}`
 
+Delete authorization rules:
+- Admin can delete any user profile.
+- Student/Owner can delete only their own profile.
+- Delete is a soft delete (`IsDeleted = true`).
+
 ## 9.2 Hostels (`/api/hostels`)
 
 - `GET /api/hostels`
 - `GET /api/hostels/{id}`
+- `POST /api/hostels/search` (budget + amenities + university distance + weighted ranking)
 - `POST /api/hostels`
 - `PUT /api/hostels/{id}`
 - `DELETE /api/hostels/{id}`
+- `POST /api/hostels/{id}/restore`
+
+Delete/restore lifecycle:
+- `DELETE /api/hostels/{id}` performs soft delete (`IsDeleted = true`, `DeletedAt = UtcNow`)
+- `POST /api/hostels/{id}/restore` restores within retention window (`IsDeleted = false`, `DeletedAt = null`)
+- Deleting a hostel also soft-deletes associated `HostelImage` rows
+
+Location behavior:
+- On create/update, backend accepts either explicit `latitude`/`longitude` or a `googleMapsUrl` containing coordinates.
+- If only `googleMapsUrl` is provided, coordinates are extracted and stored.
+- Short links (`https://maps.app.goo.gl/...`) are resolved via HTTP redirect first, then coordinates are extracted from the resolved URL.
+
+Search behavior (`POST /api/hostels/search`):
+- Weighted score uses `price`, `distance`, `rating`.
+- Request-provided `weights` are used first.
+- If authenticated and `universityId` is empty, backend falls back to saved `StudentPreference.universityId`.
+- If authenticated and `weights` are omitted, backend falls back to saved `StudentPreference.weights`.
+- Saved budget/capacity/amenities are used as ranking preferences (soft boost), not hard filters.
+- Hard filtering still occurs only when corresponding filter values are explicitly sent in the search request.
+- If neither request nor saved preference provides `universityId`, request fails with `400`.
+
+Search request body example:
+```json
+{
+  "minBudget": 12000,
+  "maxBudget": 35000,
+  "genderPolicy": "Female",
+  "requiredCapacity": 1,
+  "universityId": "7f27fe6d-9e2c-4f36-bbaf-30bd58ac95ad",
+  "amenityIds": [
+    "a2ea6b48-5f69-4d2e-a478-0adc027e65bb",
+    "c1c1a6a4-f44e-4171-be89-b2da5bc2bde5"
+  ],
+  "weights": {
+    "priceWeight": 0.5,
+    "distanceWeight": 0.3,
+    "ratingWeight": 0.2
+  }
+}
+```
+
+Search request body example using saved preference fallback (authenticated user):
+```json
+{
+  "genderPolicy": "Female"
+}
+```
+
+## 9.2.1 Universities (`/api/universities`)
+
+- `GET /api/universities`
+- `GET /api/universities/{id}`
+- `POST /api/universities`
+- `PUT /api/universities/{id}`
+- `DELETE /api/universities/{id}`
+
+## 9.2.2 Student Preferences (`/api/student-preferences`)
+
+- `GET /api/student-preferences/me`
+  - Authenticated
+  - Returns saved recommendation defaults for current user
+
+- `PUT /api/student-preferences/me`
+  - Authenticated
+  - Creates or updates current user's saved recommendation defaults
+
+`PUT /api/student-preferences/me` body (`StudentPreferenceUpsertDto`):
+- `universityId` (`Guid`, required)
+- `minBudget` (`decimal?`)
+- `maxBudget` (`decimal?`)
+- `requiredCapacity` (`int?`)
+- `selectedAmenities` (`List<string>?`, amenity names)
+- `priorityOrder` (`List<string>?`, must contain exactly `price`, `distance`, `rating`)
+- `weights` (`StudentPreferenceWeightsDto?`)
+  - `price`, `distance`, `rating`
+  - If omitted, backend derives weights from `priorityOrder` as `0.5`, `0.3`, `0.2` (top to bottom)
+  - If provided, backend normalizes to sum = `1.0`
+
+Frontend payload example (from preference form):
+```json
+{
+  "universityId": "7f27fe6d-9e2c-4f36-bbaf-30bd58ac95ad",
+  "minBudget": 15000,
+  "maxBudget": 40000,
+  "requiredCapacity": 2,
+  "selectedAmenities": ["Wifi", "Attached Bathroom", "Laundry"],
+  "priorityOrder": ["distance", "price", "rating"],
+  "weights": {
+    "price": 0.3,
+    "distance": 0.5,
+    "rating": 0.2
+  }
+}
+```
+
+Validation rules:
+- `universityId` must exist.
+- `minBudget`/`maxBudget` cannot be negative.
+- If both present, `minBudget <= maxBudget`.
+- `requiredCapacity` must be greater than zero when provided.
+- Every `selectedAmenities` value must exist in amenities table.
 
 ## 9.3 Rooms (`/api/rooms`)
 
@@ -227,7 +352,17 @@ Now includes:
 - `GET /api/hostel-amenities`
 - `GET /api/hostel-amenities/{hostelId}/{amenityId}`
 - `POST /api/hostel-amenities`
+- `POST /api/hostel-amenities/by-names`
 - `DELETE /api/hostel-amenities/{hostelId}/{amenityId}`
+
+`POST /api/hostel-amenities/by-names` body (`HostelAmenityBulkCreateDto`):
+- `hostelId`
+- `amenityNames` (comma-separated, e.g. `"Wifi, Electricity"`)
+
+Behavior:
+- Splits by comma and trims values
+- Creates missing amenities
+- Links all parsed amenities to the hostel in one call
 
 ## 9.7 Interaction Events (`/api/interactionevents`)
 
@@ -283,6 +418,15 @@ Validation:
     - `displayOrder` (`int`, optional)
   - Authorization: hostel owner or admin
   - Enforces max **8 images** per hostel
+  - Server-side validation:
+    - Max file size: **5MB**
+    - Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
+  - Images are resized/compressed on upload using ImageSharp and saved as WebP variants:
+    - `thumbnail`: 300px max width
+    - `card`: 600px max width
+    - `full`: 1200px max width
+  - Stored `ImageUrl` points to the `full` variant
+  - CDN-ready URL support via `ImageStorage:CdnBaseUrl` configuration
 
 - `DELETE /api/hostelimages/{imageId}`
   - Authenticated
@@ -317,3 +461,8 @@ Common statuses:
 
 - Data access is repository-driven for key modules (Auth, Hostels, HostelReviews, Verification, Subscription).
 - `HostelImage` now stores metadata + `ImageUrl` and is designed for seamless migration from local file storage to Azure Blob storage by replacing `IImageStorageService` implementation only.
+- Soft-delete lifecycle now includes `DeletedAt` on entities.
+- `CleanupDeletedDataService` runs on a schedule and permanently deletes hostels past retention (default 60 days), including storage image cleanup.
+- Cleanup settings:
+  - `DataCleanup:RetentionDays` (default `60`)
+  - `DataCleanup:RunIntervalHours` (default `24`)

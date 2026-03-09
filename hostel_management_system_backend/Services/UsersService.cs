@@ -8,7 +8,7 @@ public interface IUsersService
     Task<UserReadDto?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<UserReadDto> CreateAsync(UserCreateDto dto, CancellationToken cancellationToken);
     Task<UserReadDto?> UpdateAsync(Guid id, UserUpdateDto dto, CancellationToken cancellationToken);
-    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid id, Guid requestingUserId, bool isAdmin, CancellationToken cancellationToken);
 }
 
 public sealed class UsersService : IUsersService
@@ -69,13 +69,21 @@ public sealed class UsersService : IUsersService
         return _mapper.Map<UserReadDto>(entity);
     }
 
-    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<bool> DeleteAsync(Guid id, Guid requestingUserId, bool isAdmin, CancellationToken cancellationToken)
     {
-        var entity = await _repo.GetByIdForUpdateAsync(id, cancellationToken);
+        var entity = await _repo.GetSingleForUpdateAsync(
+            u => u.Id == id && u.Role != UserRole.Admin,
+            cancellationToken);
+
         if (entity is null)
-            throw new NotFoundException("User not found.");
+            throw new NotFoundException("User not found or cannot be deleted.");
+
+        // Authorization: user can delete their own profile, admin can delete anyone
+        if (!isAdmin && id != requestingUserId)
+            throw new ForbiddenException("You can only delete your own profile.");
 
         entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
         await _repo.SaveChangesAsync(cancellationToken);
         return true;

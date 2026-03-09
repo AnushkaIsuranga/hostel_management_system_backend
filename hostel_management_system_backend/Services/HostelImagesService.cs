@@ -12,6 +12,8 @@ public interface IHostelImagesService
 
 public sealed class HostelImagesService : IHostelImagesService
 {
+    private const long MaxImageSizeBytes = 5 * 1024 * 1024;
+
     private readonly IHostelImageRepository _repository;
     private readonly IImageStorageService _storageService;
     private readonly IMapper _mapper;
@@ -36,6 +38,16 @@ public sealed class HostelImagesService : IHostelImagesService
             throw new BadRequestException("Image file is required.");
         }
 
+        if (file.Length > MaxImageSizeBytes)
+        {
+            throw new BadRequestException("Image too large. Maximum allowed size is 5MB.");
+        }
+
+        if (string.IsNullOrWhiteSpace(file.ContentType) || !file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new BadRequestException("Invalid image type.");
+        }
+
         var ownerId = await _repository.GetHostelOwnerIdAsync(hostelId, cancellationToken);
         if (!ownerId.HasValue)
         {
@@ -47,17 +59,17 @@ public sealed class HostelImagesService : IHostelImagesService
             throw new ForbiddenException("You are not allowed to upload images for this hostel.");
         }
 
-        var imageUrl = await _storageService.UploadImageAsync(file, hostelId, cancellationToken);
+        var storedImage = await _storageService.UploadImageAsync(file, hostelId, cancellationToken);
 
         try
         {
             var image = new HostelImage
             {
                 HostelId = hostelId,
-                FileName = file.FileName,
-                ContentType = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType,
-                FileSize = file.Length,
-                ImageUrl = imageUrl,
+                FileName = storedImage.StoredFileName,
+                ContentType = storedImage.ContentType,
+                FileSize = storedImage.FileSize,
+                ImageUrl = storedImage.ImageUrl,
                 DisplayOrder = displayOrder ?? 0,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = null,
@@ -69,7 +81,7 @@ public sealed class HostelImagesService : IHostelImagesService
         }
         catch
         {
-            await _storageService.DeleteImageAsync(imageUrl, cancellationToken);
+            await _storageService.DeleteImageAsync(storedImage.ImageUrl, cancellationToken);
             throw;
         }
     }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Linq.Expressions;
 
 public sealed class CrudRepository<TEntity> : ICrudRepository<TEntity>
     where TEntity : BaseModel
@@ -20,6 +21,9 @@ public sealed class CrudRepository<TEntity> : ICrudRepository<TEntity>
 
     public Task<TEntity?> GetByIdForUpdateAsync(Guid id, CancellationToken cancellationToken)
         => _set.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+    public Task<TEntity?> GetSingleForUpdateAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken)
+        => _set.FirstOrDefaultAsync(predicate, cancellationToken);
 
     public Task AddAsync(TEntity entity, CancellationToken cancellationToken)
         => _set.AddAsync(entity, cancellationToken).AsTask();

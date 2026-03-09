@@ -40,6 +40,12 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddHttpClient("GoogleMapsResolver", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("HostelManagementSystem/1.0");
+});
+builder.Services.AddHttpContextAccessor();
 
 // Repositories
 builder.Services.AddScoped(typeof(ICrudRepository<>), typeof(CrudRepository<>));
@@ -65,9 +71,12 @@ builder.Services.AddScoped<IHostelVerificationService, HostelVerificationService
 builder.Services.AddScoped<ISubscriptionService, SubscriptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IHostelImagesService, HostelImagesService>();
+builder.Services.AddScoped<IUniversitiesService, UniversitiesService>();
+builder.Services.AddScoped<IStudentPreferencesService, StudentPreferencesService>();
 builder.Services.AddScoped<IImageStorageService, LocalImageStorageService>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddHostedService<SubscriptionMonitorService>();
+builder.Services.AddHostedService<CleanupDeletedDataService>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var key = Encoding.UTF8.GetBytes(jwtSettings["Secret"]!);
@@ -99,6 +108,7 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 await SeedDefaultAdminAsync(app);
+await SeedDefaultUniversitiesAsync(app);
 
 // For debugging, enable swagger in Development (or remove the if-check while troubleshooting)
 if (app.Environment.IsDevelopment())
@@ -156,5 +166,18 @@ static async Task SeedDefaultAdminAsync(WebApplication app)
     };
 
     dbContext.Users.Add(adminUser);
+    await dbContext.SaveChangesAsync();
+}
+
+static async Task SeedDefaultUniversitiesAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    if (await dbContext.Universities.AnyAsync())
+    {
+        return;
+    }
+
     await dbContext.SaveChangesAsync();
 }

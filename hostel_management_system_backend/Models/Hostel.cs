@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 public class Hostel : BaseModel
 {
     public string Name { get; set; } = string.Empty;
@@ -22,11 +24,16 @@ public class Hostel : BaseModel
 
     public string GenderPolicy { get; set; } = string.Empty;
 
-    public string LocationUrl { get; set; } = string.Empty;
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+
+    [Column("LocationUrl")]
+    public string GoogleMapsUrl { get; set; } = string.Empty;
 
     public HostelStatus Status { get; set; }
 
     // Navigation
+    public User Owner { get; set; } = null!;
     public ICollection<Room> Rooms { get; set; } = new List<Room>();
     public ICollection<HostelListing> Listings { get; set; } = new List<HostelListing>();
     public ICollection<HostelAmenity> HostelAmenities { get; set; } = new List<HostelAmenity>();

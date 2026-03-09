@@ -19,6 +19,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<HostelImage> HostelImages => Set<HostelImage>();
     public DbSet<HostelVerificationRequest> HostelVerificationRequests => Set<HostelVerificationRequest>();
     public DbSet<HostelSubscription> HostelSubscriptions => Set<HostelSubscription>();
+    public DbSet<University> Universities => Set<University>();
+    public DbSet<StudentPreference> StudentPreferences => Set<StudentPreference>();
 
     // Join tables
     public DbSet<HostelAmenity> HostelAmenities => Set<HostelAmenity>();
@@ -41,6 +43,8 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<HostelImage>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<HostelVerificationRequest>().HasQueryFilter(e => !e.IsDeleted);
         modelBuilder.Entity<HostelSubscription>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<University>().HasQueryFilter(e => !e.IsDeleted);
+        modelBuilder.Entity<StudentPreference>().HasQueryFilter(e => !e.IsDeleted);
 
         // --------------------------------------------------
         // User
@@ -112,8 +116,15 @@ public class ApplicationDbContext : DbContext
                 .HasMaxLength(100)
                 .IsRequired();
 
-            entity.Property(h => h.LocationUrl)
+            entity.Property(h => h.GoogleMapsUrl)
+                .HasColumnName("LocationUrl")
                 .HasMaxLength(500)
+                .IsRequired(false);
+
+            entity.Property(h => h.Latitude)
+                .IsRequired();
+
+            entity.Property(h => h.Longitude)
                 .IsRequired();
 
             entity.Property(h => h.MinPrice)
@@ -126,8 +137,9 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(h => h.Status);
             entity.HasIndex(h => h.OwnerId);
             entity.HasIndex(h => h.VerificationStatus);
+            entity.HasIndex(h => new { h.Latitude, h.Longitude });
 
-            entity.HasOne<User>()
+            entity.HasOne(h => h.Owner)
                 .WithMany(u => u.OwnedHostels)
                 .HasForeignKey(h => h.OwnerId)
                 .OnDelete(DeleteBehavior.Restrict);
@@ -136,6 +148,69 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(h => h.VerifiedByAdminId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // --------------------------------------------------
+        // University
+        // --------------------------------------------------
+        modelBuilder.Entity<University>(entity =>
+        {
+            entity.Property(u => u.Name)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(u => u.Latitude)
+                .IsRequired();
+
+            entity.Property(u => u.Longitude)
+                .IsRequired();
+
+            entity.HasIndex(u => u.Name)
+                .IsUnique();
+        });
+
+        // --------------------------------------------------
+        // StudentPreference
+        // --------------------------------------------------
+        modelBuilder.Entity<StudentPreference>(entity =>
+        {
+            entity.Property(p => p.MinBudget)
+                .HasPrecision(18, 2);
+
+            entity.Property(p => p.MaxBudget)
+                .HasPrecision(18, 2);
+
+            entity.Property(p => p.SelectedAmenitiesJson)
+                .HasMaxLength(4000)
+                .IsRequired();
+
+            entity.Property(p => p.PriorityOrderJson)
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(p => p.PriceWeight)
+                .IsRequired();
+
+            entity.Property(p => p.DistanceWeight)
+                .IsRequired();
+
+            entity.Property(p => p.RatingWeight)
+                .IsRequired();
+
+            entity.HasIndex(p => p.UserId)
+                .IsUnique();
+
+            entity.HasIndex(p => p.UniversityId);
+
+            entity.HasOne(p => p.User)
+                .WithOne(u => u.StudentPreference)
+                .HasForeignKey<StudentPreference>(p => p.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.University)
+                .WithMany()
+                .HasForeignKey(p => p.UniversityId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // --------------------------------------------------

@@ -67,6 +67,7 @@ public sealed class InteractionEventsService : IInteractionEventsService
             throw new NotFoundException("Interaction event not found.");
 
         entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
         await _repo.SaveChangesAsync(cancellationToken);
         return true;

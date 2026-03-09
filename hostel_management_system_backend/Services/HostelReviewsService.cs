@@ -136,6 +136,7 @@ public sealed class HostelReviewsService : IHostelReviewsService
         }
 
         entity.IsDeleted = true;
+        entity.DeletedAt = DateTime.UtcNow;
         entity.UpdatedAt = DateTime.UtcNow;
         await _repo.SaveChangesAsync(cancellationToken);
     }

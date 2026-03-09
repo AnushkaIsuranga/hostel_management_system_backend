@@ -4,5 +4,6 @@ public interface IAuthRepository
     Task<RefreshToken?> GetRefreshTokenWithUserForUpdateAsync(string tokenHash, CancellationToken cancellationToken);
     Task<RefreshToken?> GetActiveRefreshTokenForUpdateAsync(string tokenHash, CancellationToken cancellationToken);
     Task AddRefreshTokenAsync(RefreshToken refreshToken, CancellationToken cancellationToken);
+    Task AddUserAsync(User user, CancellationToken cancellationToken);
     Task SaveChangesAsync(CancellationToken cancellationToken);
 }
