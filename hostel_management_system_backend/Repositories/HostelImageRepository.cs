@@ -48,6 +48,7 @@ public sealed class HostelImageRepository : IHostelImageRepository
     public async Task<bool> DeleteImageAsync(HostelImage image, CancellationToken cancellationToken)
     {
         image.IsDeleted = true;
+        image.DeletedAt = DateTime.UtcNow;
         image.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);

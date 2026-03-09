@@ -35,6 +35,13 @@ public sealed class HostelAmenitiesController : ControllerBase
         return CreatedAtAction(nameof(GetByKey), new { hostelId = dto.HostelId, amenityId = dto.AmenityId }, result.Result);
     }
 
+    [HttpPost("by-names")]
+    public async Task<ActionResult<List<HostelAmenityReadDto>>> CreateByNames([FromBody] HostelAmenityBulkCreateDto dto, CancellationToken cancellationToken)
+    {
+        var links = await _service.CreateByNamesAsync(dto, cancellationToken);
+        return Ok(links);
+    }
+
     [HttpDelete("{hostelId:guid}/{amenityId:guid}")]
     public async Task<IActionResult> Delete(Guid hostelId, Guid amenityId, CancellationToken cancellationToken)
     {

@@ -25,6 +25,13 @@ public sealed class HostelsController : ControllerBase
         return hostel is null ? NotFound() : Ok(hostel);
     }
 
+    [HttpPost("search")]
+    public async Task<ActionResult<List<HostelSearchResultDto>>> Search([FromBody] HostelSearchRequestDto request, CancellationToken cancellationToken)
+    {
+        var results = await _service.SearchAsync(request, cancellationToken);
+        return Ok(results);
+    }
+
     [HttpPost]
     public async Task<ActionResult<HostelReadDto>> Create([FromBody] HostelCreateDto dto, CancellationToken cancellationToken)
     {
@@ -44,5 +51,12 @@ public sealed class HostelsController : ControllerBase
     {
         var deleted = await _service.DeleteAsync(id, cancellationToken);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpPost("{id:guid}/restore")]
+    public async Task<ActionResult<HostelReadDto>> Restore(Guid id, CancellationToken cancellationToken)
+    {
+        var restored = await _service.RestoreAsync(id, cancellationToken);
+        return Ok(restored);
     }
 }

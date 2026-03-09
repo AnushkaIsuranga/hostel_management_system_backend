@@ -6,4 +6,5 @@ public abstract class BaseModel
     public DateTime? UpdatedAt { get; set; }
 
     public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
 }

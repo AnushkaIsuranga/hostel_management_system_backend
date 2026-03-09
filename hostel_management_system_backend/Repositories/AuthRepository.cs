@@ -24,6 +24,9 @@ public sealed class AuthRepository : IAuthRepository
     public Task AddRefreshTokenAsync(RefreshToken refreshToken, CancellationToken cancellationToken)
         => _db.RefreshTokens.AddAsync(refreshToken, cancellationToken).AsTask();
 
+    public Task AddUserAsync(User user, CancellationToken cancellationToken)
+        => _db.Users.AddAsync(user, cancellationToken).AsTask();
+
     public Task SaveChangesAsync(CancellationToken cancellationToken)
         => _db.SaveChangesAsync(cancellationToken);
 }

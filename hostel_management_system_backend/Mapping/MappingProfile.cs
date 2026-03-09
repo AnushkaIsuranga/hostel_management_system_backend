@@ -11,6 +11,9 @@ public sealed class MappingProfile : Profile
 
         // Hostel
         CreateMap<Hostel, HostelReadDto>()
+            .ForCtorParam("OwnerName", opt => opt.MapFrom(src => src.Owner.FullName))
+            .ForCtorParam("OwnerEmail", opt => opt.MapFrom(src => src.Owner.Email))
+            .ForCtorParam("OwnerPhoneNumber", opt => opt.MapFrom(src => src.Owner.PhoneNumber))
             .ForCtorParam("Images", opt => opt.MapFrom(src => src.Images.OrderBy(i => i.DisplayOrder).Select(i => i.ImageUrl).ToList()));
         CreateMap<HostelCreateDto, Hostel>();
         CreateMap<HostelUpdateDto, Hostel>();
@@ -53,5 +56,10 @@ public sealed class MappingProfile : Profile
 
         // HostelImage
         CreateMap<HostelImage, HostelImageReadDto>();
+
+        // University
+        CreateMap<University, UniversityReadDto>();
+        CreateMap<UniversityCreateDto, University>();
+        CreateMap<UniversityUpdateDto, University>();
     }
 }

@@ -22,8 +22,18 @@ public sealed class AuthController : ControllerBase
         var result = await _authService.LoginAsync(dto, cancellationToken)
             ?? throw new UnauthorizedException("Invalid email or password.");
 
-        WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+        WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt, result.Response.Role == UserRole.Admin);
         return Ok(result.Response);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("register")]
+    public async Task<ActionResult<AuthTokensResponseDto>> Register([FromBody] UserRegisterDto dto, CancellationToken cancellationToken)
+    {
+        var result = await _authService.RegisterAsync(dto, cancellationToken);
+
+        WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+        return CreatedAtAction(nameof(Register), result.Response);
     }
 
     [AllowAnonymous]
@@ -48,7 +58,7 @@ public sealed class AuthController : ControllerBase
             throw;
         }
 
-        WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+        WriteRefreshCookie(result.RefreshToken, result.RefreshTokenExpiresAt, result.Response.Role == UserRole.Admin);
         return Ok(result.Response);
     }
 
@@ -76,19 +86,21 @@ public sealed class AuthController : ControllerBase
         return refreshToken;
     }
 
-    private void WriteRefreshCookie(string token, DateTime expiresAt)
+    private void WriteRefreshCookie(string token, DateTime expiresAt, bool sessionOnly = false)
     {
-        Response.Cookies.Append(
-            GetRefreshCookieName(),
-            token,
-            new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = Request.IsHttps,
-                SameSite = SameSiteMode.Strict,
-                Expires = new DateTimeOffset(expiresAt)
-            }
-        );
+        var options = new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = Request.IsHttps,
+            SameSite = SameSiteMode.Strict
+        };
+
+        if (!sessionOnly)
+        {
+            options.Expires = new DateTimeOffset(expiresAt);
+        }
+
+        Response.Cookies.Append(GetRefreshCookieName(), token, options);
     }
 
     private void DeleteRefreshCookie()

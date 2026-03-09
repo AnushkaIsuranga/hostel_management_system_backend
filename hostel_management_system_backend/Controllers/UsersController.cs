@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 
 [ApiController]
 [Route("api/[controller]")]
 public sealed class UsersController : ControllerBase
 {
     private readonly IUsersService _service;
-
     public UsersController(IUsersService service)
     {
         _service = service;
@@ -40,9 +42,16 @@ public sealed class UsersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize]
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
-        var deleted = await _service.DeleteAsync(id, cancellationToken);
+        var isAdmin = User.IsInRole(UserRole.Admin.ToString());
+        var sub = User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+        if (!Guid.TryParse(sub, out var requestingUserId))
+            return Unauthorized("Invalid token.");
+
+        var deleted = await _service.DeleteAsync(id, requestingUserId, isAdmin, cancellationToken);
         return deleted ? NoContent() : NotFound();
     }
 }

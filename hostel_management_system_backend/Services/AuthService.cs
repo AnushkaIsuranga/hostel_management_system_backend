@@ -6,6 +6,7 @@ public interface IAuthService
     Task<AuthTokenIssueResult?> LoginAsync(LoginRequestDto dto, CancellationToken cancellationToken);
     Task<AuthTokenIssueResult?> RefreshAsync(string refreshToken, CancellationToken cancellationToken);
     Task LogoutAsync(string refreshToken, CancellationToken cancellationToken);
+    Task<AuthTokenIssueResult> RegisterAsync(UserRegisterDto dto, CancellationToken cancellationToken);
 }
 
 public sealed class AuthService : IAuthService
@@ -37,17 +38,19 @@ public sealed class AuthService : IAuthService
 
         user.LastActivityAt = DateTime.UtcNow;
 
+    var effectiveRememberMe = user.Role == UserRole.Admin ? false : dto.RememberMe;
+
         var accessToken = _jwtService.GenerateAccessToken(user);
         var refreshTokenValue = _jwtService.GenerateRefreshToken();
         var refreshTokenHash = RefreshTokenHasher.Hash(refreshTokenValue);
-        var refreshExpiresAt = DateTime.UtcNow.Add(GetRefreshLifetime(user.Role, dto.RememberMe));
+    var refreshExpiresAt = DateTime.UtcNow.Add(GetRefreshLifetime(user.Role, effectiveRememberMe));
 
         var refreshToken = new RefreshToken
         {
             UserId = user.Id,
             TokenHash = refreshTokenHash,
             ExpiresAt = refreshExpiresAt,
-            RememberMe = dto.RememberMe,
+            RememberMe = effectiveRememberMe,
             Revoked = false,
             CreatedAt = DateTime.UtcNow
         };
@@ -148,6 +151,68 @@ public sealed class AuthService : IAuthService
 
         tokenEntity.Revoked = true;
         await _repo.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<AuthTokenIssueResult> RegisterAsync(UserRegisterDto dto, CancellationToken cancellationToken)
+    {
+        // Check if email already exists
+        var existingUser = await _repo.GetUserByEmailForUpdateAsync(dto.Email, cancellationToken);
+        if (existingUser is not null)
+            throw new ConflictException("A user with this email already exists.", "email_conflict");
+
+        var user = new User
+        {
+            FullName = dto.FullName,
+            Email = dto.Email,
+            PhoneNumber = dto.PhoneNumber,
+            PasswordHash = Argon2.Hash(dto.Password),
+             // Role will be set based on user type during registration flow
+            LastActivityAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = null,
+            IsDeleted = false
+        };
+
+        await _repo.AddUserAsync(user, cancellationToken);
+        try
+        {
+            await _repo.SaveChangesAsync(cancellationToken);
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            throw new ConflictException("A user with this email already exists.", "email_conflict", ex);
+        }
+
+        // Issue tokens after successful registration
+        var accessToken = _jwtService.GenerateAccessToken(user);
+        var refreshTokenValue = _jwtService.GenerateRefreshToken();
+        var refreshTokenHash = RefreshTokenHasher.Hash(refreshTokenValue);
+        var refreshExpiresAt = DateTime.UtcNow.AddDays(1); // Default: 1 day for new users without remember-me
+
+        var refreshToken = new RefreshToken
+        {
+            UserId = user.Id,
+            TokenHash = refreshTokenHash,
+            ExpiresAt = refreshExpiresAt,
+            RememberMe = false,
+            Revoked = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _repo.AddRefreshTokenAsync(refreshToken, cancellationToken);
+        await _repo.SaveChangesAsync(cancellationToken);
+
+        return new AuthTokenIssueResult(
+            new AuthTokensResponseDto(
+                accessToken.Token,
+                accessToken.ExpiresAt,
+                user.Id,
+                user.Email,
+                user.Role
+            ),
+            refreshTokenValue,
+            refreshExpiresAt
+        );
     }
 
     private TimeSpan GetRefreshLifetime(UserRole role, bool rememberMe)
