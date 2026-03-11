@@ -1,0 +1,60 @@
+{
+  "name": "hostel_management_system_backend",
+  "version": "1.0.0",
+  "description": "NestJS + PostgreSQL + Prisma backend for the hostel management system.",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "start:dev": "tsx watch src/main.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:studio": "prisma studio",
+    "prisma:seed": "tsx prisma/seed.ts",
+    "seed": "npm run prisma:seed",
+    "postinstall": "prisma generate"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnushkaIsuranga/hostel_management_system_backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AnushkaIsuranga/hostel_management_system_backend/issues"
+  },
+  "homepage": "https://github.com/AnushkaIsuranga/hostel_management_system_backend#readme",
+  "dependencies": {
+    "@nestjs/common": "^11.1.16",
+    "@nestjs/config": "^4.0.3",
+    "@nestjs/core": "^11.1.16",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.16",
+    "@nestjs/schedule": "^6.1.1",
+    "@prisma/client": "^6.17.1",
+    "argon2": "^0.44.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "cookie-parser": "^1.4.7",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/node": "^25.4.0",
+    "@types/passport": "^1.0.17",
+    "@types/passport-jwt": "^4.0.1",
+    "prisma": "^6.17.1",
+    "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

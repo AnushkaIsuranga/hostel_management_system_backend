@@ -1,0 +1,166 @@
+import { Injectable } from '@nestjs/common';
+
+import {
+  AppBadRequestException,
+  AppForbiddenException,
+  AppNotFoundException,
+} from '../../common/exceptions/app-exception';
+import { PrismaService } from '../../prisma/prisma.service';
+import { HostelImageReadDto } from './dto/hostel-images.dto';
+import { LocalImageStorageService } from './local-image-storage.service';
+
+@Injectable()
+export class HostelImagesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly localImageStorageService: LocalImageStorageService,
+  ) {}
+
+  async getImagesByHostelId(hostelId: string): Promise<HostelImageReadDto[]> {
+    const images = await this.prisma.hostelImage.findMany({
+      where: {
+        hostelId,
+        isDeleted: false,
+      },
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return images.map((image) => this.toReadDto(image));
+  }
+
+  async addImage(
+    hostelId: string,
+    file: Express.Multer.File,
+    displayOrder: number | undefined,
+    userId: string,
+    isAdmin: boolean,
+  ): Promise<HostelImageReadDto> {
+    const hostel = await this.prisma.hostel.findFirst({
+      where: {
+        id: hostelId,
+        isDeleted: false,
+      },
+    });
+
+    if (!hostel) {
+      throw new AppNotFoundException('Hostel not found.');
+    }
+
+    if (!isAdmin && hostel.ownerId !== userId) {
+      throw new AppForbiddenException('You are not allowed to upload images for this hostel.');
+    }
+
+    const count = await this.prisma.hostelImage.count({
+      where: {
+        hostelId,
+        isDeleted: false,
+      },
+    });
+
+    if (count >= 8) {
+      throw new AppBadRequestException('Maximum 8 images allowed per hostel');
+    }
+
+    const stored = await this.localImageStorageService.uploadImage(file, hostelId);
+
+    try {
+      const image = await this.prisma.hostelImage.create({
+        data: {
+          hostelId,
+          fileName: stored.storedFileName,
+          contentType: stored.contentType,
+          fileSize: BigInt(stored.fileSize),
+          imageUrl: stored.imageUrl,
+          displayOrder: displayOrder ?? 0,
+          createdAt: new Date(),
+          isDeleted: false,
+        },
+      });
+
+      return this.toReadDto(image);
+    } catch (error) {
+      await this.localImageStorageService.deleteImage(stored.imageUrl);
+      throw error;
+    }
+  }
+
+  async deleteImage(imageId: string, userId: string, isAdmin: boolean) {
+    const image = await this.prisma.hostelImage.findFirst({
+      where: {
+        id: imageId,
+        isDeleted: false,
+      },
+      include: {
+        hostel: true,
+      },
+    });
+
+    if (!image) {
+      throw new AppNotFoundException('Image not found.');
+    }
+
+    if (!isAdmin && image.hostel.ownerId !== userId) {
+      throw new AppForbiddenException('You are not allowed to delete this image.');
+    }
+
+    await this.localImageStorageService.deleteImage(image.imageUrl);
+    await this.prisma.hostelImage.update({
+      where: { id: imageId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async updateImageOrder(imageId: string, order: number, userId: string, isAdmin: boolean) {
+    if (order < 0) {
+      throw new AppBadRequestException('Display order must be greater than or equal to 0.');
+    }
+
+    const image = await this.prisma.hostelImage.findFirst({
+      where: {
+        id: imageId,
+        isDeleted: false,
+      },
+      include: {
+        hostel: true,
+      },
+    });
+
+    if (!image) {
+      throw new AppNotFoundException('Image not found.');
+    }
+
+    if (!isAdmin && image.hostel.ownerId !== userId) {
+      throw new AppForbiddenException('You are not allowed to reorder this image.');
+    }
+
+    await this.prisma.hostelImage.update({
+      where: { id: imageId },
+      data: {
+        displayOrder: order,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async deleteImageByUrl(imageUrl: string) {
+    await this.localImageStorageService.deleteImage(imageUrl);
+  }
+
+  private toReadDto(image: any): HostelImageReadDto {
+    return {
+      id: image.id,
+      hostelId: image.hostelId,
+      fileName: image.fileName,
+      contentType: image.contentType,
+      fileSize: Number(image.fileSize),
+      imageUrl: image.imageUrl,
+      displayOrder: image.displayOrder,
+      createdAt: image.createdAt,
+      updatedAt: image.updatedAt,
+    };
+  }
+}

@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                           String                      @id @default(uuid()) @db.Uuid
+  fullName                     String                      @db.VarChar(200)
+  email                        String                      @unique @db.VarChar(200)
+  passwordHash                 String                      @db.VarChar(500)
+  phoneNumber                  String                      @default("") @db.VarChar(20)
+  role                         Int                         @default(0)
+  lastActivityAt               DateTime                    @default(now())
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime?
+  isDeleted                    Boolean                     @default(false)
+  deletedAt                    DateTime?
+  ownedHostels                 Hostel[]                    @relation("HostelOwner")
+  verifiedHostels              Hostel[]                    @relation("HostelVerifiedByAdmin")
+  listings                     HostelListing[]             @relation("ListingOwner")
+  interactionEvents            InteractionEvent[]
+  refreshTokens                RefreshToken[]
+  hostelReviews                HostelReview[]
+  studentPreference            StudentPreference?
+  requestedVerificationReviews HostelVerificationRequest[] @relation("VerificationRequestedBy")
+  reviewedVerificationReviews  HostelVerificationRequest[] @relation("VerificationReviewedBy")
+
+  @@index([isDeleted])
+}
+
+model Hostel {
+  id                   String                      @id @default(uuid()) @db.Uuid
+  name                 String                      @db.VarChar(200)
+  ownerId              String                      @db.Uuid
+  isVerified           Boolean                     @default(false)
+  verifiedAt           DateTime?
+  verifiedByAdminId    String?                     @db.Uuid
+  verificationStatus   Int                         @default(0)
+  description          String                      @default("")
+  city                 String                      @db.VarChar(100)
+  address              String
+  minPrice             Decimal                     @db.Decimal(18, 2)
+  maxPrice             Decimal                     @db.Decimal(18, 2)
+  genderPolicy         String                      @default("")
+  latitude             Float
+  longitude            Float
+  googleMapsUrl        String                      @default("")
+  status               Int                         @default(0)
+  createdAt            DateTime                    @default(now())
+  updatedAt            DateTime?
+  isDeleted            Boolean                     @default(false)
+  deletedAt            DateTime?
+  owner                User                        @relation("HostelOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  verifiedByAdmin      User?                       @relation("HostelVerifiedByAdmin", fields: [verifiedByAdminId], references: [id], onDelete: SetNull)
+  rooms                Room[]
+  listings             HostelListing[]
+  hostelAmenities      HostelAmenity[]
+  interactionEvents    InteractionEvent[]
+  reviews              HostelReview[]
+  images               HostelImage[]
+  subscription         HostelSubscription?
+  verificationRequests HostelVerificationRequest[]
+
+  @@index([city])
+  @@index([status])
+  @@index([ownerId])
+  @@index([verificationStatus])
+  @@index([latitude, longitude])
+  @@index([isDeleted])
+}
+
+model HostelListing {
+  id          String   @id @default(uuid()) @db.Uuid
+  hostelId    String   @db.Uuid
+  ownerUserId String   @db.Uuid
+  status      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  hostel      Hostel   @relation(fields: [hostelId], references: [id], onDelete: Restrict)
+  owner       User     @relation("ListingOwner", fields: [ownerUserId], references: [id], onDelete: Restrict)
+
+  @@unique([hostelId, ownerUserId])
+  @@index([isDeleted])
+}
+
+model Room {
+  id          String   @id @default(uuid()) @db.Uuid
+  hostelId    String   @db.Uuid
+  roomType    String   @db.VarChar(100)
+  price       Decimal  @db.Decimal(18, 2)
+  capacity    Int
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime?
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  hostel      Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@index([hostelId])
+  @@index([isDeleted])
+}
+
+model Amenity {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String          @unique @db.VarChar(100)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime?
+  isDeleted       Boolean         @default(false)
+  deletedAt       DateTime?
+  hostelAmenities HostelAmenity[]
+
+  @@index([isDeleted])
+}
+
+model HostelAmenity {
+  hostelId  String  @db.Uuid
+  amenityId String  @db.Uuid
+  hostel    Hostel  @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  amenity   Amenity @relation(fields: [amenityId], references: [id], onDelete: Cascade)
+
+  @@id([hostelId, amenityId])
+  @@index([amenityId])
+}
+
+model InteractionEvent {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String?  @db.Uuid
+  hostelId   String?  @db.Uuid
+  eventType  Int
+  eventData  String?
+  sessionId  String   @db.VarChar(100)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime?
+  isDeleted  Boolean  @default(false)
+  deletedAt  DateTime?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  hostel     Hostel?  @relation(fields: [hostelId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([hostelId])
+  @@index([userId, eventType])
+  @@index([isDeleted])
+}
+
+model RefreshToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  tokenHash  String   @unique @db.VarChar(64)
+  expiresAt  DateTime
+  rememberMe Boolean  @default(false)
+  revoked    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revoked])
+}
+
+model HostelReview {
+  id         String   @id @default(uuid()) @db.Uuid
+  hostelId   String   @db.Uuid
+  userId     String   @db.Uuid
+  rating     Int
+  comment    String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime?
+  isDeleted  Boolean  @default(false)
+  deletedAt  DateTime?
+  hostel     Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([hostelId, userId])
+  @@index([hostelId])
+  @@index([isDeleted])
+}
+
+model HostelImage {
+  id           String   @id @default(uuid()) @db.Uuid
+  hostelId     String   @db.Uuid
+  fileName     String   @db.VarChar(255)
+  contentType  String   @db.VarChar(100)
+  fileSize     BigInt
+  imageUrl     String   @db.VarChar(1000)
+  displayOrder Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime?
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime?
+  hostel       Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@index([hostelId])
+  @@index([hostelId, displayOrder])
+  @@index([isDeleted])
+}
+
+model HostelVerificationRequest {
+  id                String   @id @default(uuid()) @db.Uuid
+  hostelId          String   @db.Uuid
+  requestedByUserId String   @db.Uuid
+  status            Int      @default(1)
+  adminNotes        String?  @db.VarChar(1000)
+  reviewedByAdminId String?  @db.Uuid
+  reviewedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime?
+  isDeleted         Boolean  @default(false)
+  deletedAt         DateTime?
+  hostel            Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  requestedByUser   User     @relation("VerificationRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  reviewedByAdmin   User?    @relation("VerificationReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([hostelId])
+  @@index([status])
+  @@index([isDeleted])
+}
+
+model HostelSubscription {
+  id                 String   @id @default(uuid()) @db.Uuid
+  hostelId           String   @unique @db.Uuid
+  startDate          DateTime
+  expiryDate         DateTime
+  isActive           Boolean  @default(true)
+  lastReminderSentAt DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime?
+  isDeleted          Boolean  @default(false)
+  deletedAt          DateTime?
+  hostel             Hostel   @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@index([expiryDate])
+  @@index([isDeleted])
+}
+
+model University {
+  id         String              @id @default(uuid()) @db.Uuid
+  name       String              @unique @db.VarChar(200)
+  latitude   Float
+  longitude  Float
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime?
+  isDeleted  Boolean             @default(false)
+  deletedAt  DateTime?
+  students   StudentPreference[]
+
+  @@index([isDeleted])
+}
+
+model StudentPreference {
+  id                    String     @id @default(uuid()) @db.Uuid
+  userId                String     @unique @db.Uuid
+  universityId          String     @db.Uuid
+  minBudget             Decimal?   @db.Decimal(18, 2)
+  maxBudget             Decimal?   @db.Decimal(18, 2)
+  requiredCapacity      Int?
+  selectedAmenitiesJson String     @default("[]") @db.VarChar(4000)
+  priorityOrderJson     String     @default("[]") @db.VarChar(200)
+  priceWeight           Float      @default(0.5)
+  distanceWeight        Float      @default(0.3)
+  ratingWeight          Float      @default(0.2)
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime?
+  isDeleted             Boolean    @default(false)
+  deletedAt             DateTime?
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  university            University @relation(fields: [universityId], references: [id], onDelete: Restrict)
+
+  @@index([universityId])
+  @@index([isDeleted])
+}
