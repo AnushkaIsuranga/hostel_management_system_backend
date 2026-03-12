@@ -8,16 +8,10 @@ import sharp from 'sharp';
 
 import { AppBadRequestException } from '../../common/exceptions/app-exception';
 import { AppConfigService } from '../../config/app-config.service';
-
-export interface StoredImageResult {
-  imageUrl: string;
-  contentType: string;
-  fileSize: number;
-  storedFileName: string;
-}
+import { StorageService, StoredImageResult } from './storage.interface';
 
 @Injectable()
-export class LocalImageStorageService {
+export class LocalImageStorageService implements StorageService {
   private static readonly MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
   private static readonly ALLOWED_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 

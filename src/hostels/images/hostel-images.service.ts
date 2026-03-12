@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 
 import {
   AppBadRequestException,
@@ -7,13 +7,14 @@ import {
 } from '../../common/exceptions/app-exception';
 import { PrismaService } from '../../prisma/prisma.service';
 import { HostelImageReadDto } from './dto/hostel-images.dto';
-import { LocalImageStorageService } from './local-image-storage.service';
+import { StorageService } from './storage.interface';
+import { STORAGE_SERVICE_TOKEN } from './storage.provider';
 
 @Injectable()
 export class HostelImagesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly localImageStorageService: LocalImageStorageService,
+    @Inject(STORAGE_SERVICE_TOKEN) private readonly storageService: StorageService,
   ) {}
 
   async getImagesByHostelId(hostelId: string): Promise<HostelImageReadDto[]> {
@@ -61,7 +62,7 @@ export class HostelImagesService {
       throw new AppBadRequestException('Maximum 8 images allowed per hostel');
     }
 
-    const stored = await this.localImageStorageService.uploadImage(file, hostelId);
+    const stored = await this.storageService.uploadImage(file, hostelId);
 
     try {
       const image = await this.prisma.hostelImage.create({
@@ -79,7 +80,7 @@ export class HostelImagesService {
 
       return this.toReadDto(image);
     } catch (error) {
-      await this.localImageStorageService.deleteImage(stored.imageUrl);
+      await this.storageService.deleteImage(stored.imageUrl);
       throw error;
     }
   }
@@ -103,7 +104,7 @@ export class HostelImagesService {
       throw new AppForbiddenException('You are not allowed to delete this image.');
     }
 
-    await this.localImageStorageService.deleteImage(image.imageUrl);
+    await this.storageService.deleteImage(image.imageUrl);
     await this.prisma.hostelImage.update({
       where: { id: imageId },
       data: {
@@ -147,7 +148,7 @@ export class HostelImagesService {
   }
 
   async deleteImageByUrl(imageUrl: string) {
-    await this.localImageStorageService.deleteImage(imageUrl);
+    await this.storageService.deleteImage(imageUrl);
   }
 
   private toReadDto(image: any): HostelImageReadDto {
