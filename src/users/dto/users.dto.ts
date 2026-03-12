@@ -29,3 +29,14 @@ export class UserRegisterDto {
   phoneNumber: string;
   password: string;
 }
+
+export interface DashboardMetricDto {
+  totalCount: number;
+  last7DaysCount: number;
+}
+
+export interface AdminOverviewDto {
+  hostels: DashboardMetricDto;
+  users: DashboardMetricDto;
+  reviews: DashboardMetricDto;
+}

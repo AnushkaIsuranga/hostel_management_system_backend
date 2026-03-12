@@ -246,7 +246,19 @@ All endpoints below are under `/api`.
 
 - `GET /users`
   - Public
-
+- `GET /users/stats`
+  - Public
+  - Returns dashboard summary counts:
+    - `hostels.totalCount`
+    - `hostels.last7DaysCount`
+    - `users.totalCount` (excludes admin users)
+    - `users.last7DaysCount` (excludes admin users)
+    - `reviews.totalCount` (excludes reviews by admin users)
+    - `reviews.last7DaysCount` (excludes reviews by admin users)
+- `GET /users/role/{role}`
+  - Public
+  - Returns users filtered by role
+  - `role` accepts: `Student`, `Owner`, `Admin`, or numeric values `0`, `1`, `2`
 - `GET /users/{id}`
   - Public
 
