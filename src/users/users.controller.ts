@@ -16,7 +16,7 @@ import { CurrentUserDecorator } from '../common/decorators/current-user.decorato
 import { UserRole } from '../common/enums/app.enums';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/interfaces/current-user.interface';
-import { UserCreateDto, UserReadDto, UserUpdateDto } from './dto/users.dto';
+import { AdminOverviewDto, UserCreateDto, UserReadDto, UserUpdateDto } from './dto/users.dto';
 import { UsersService } from './users.service';
 
 @Controller('users')
@@ -26,6 +26,16 @@ export class UsersController {
   @Get()
   getAll(): Promise<UserReadDto[]> {
     return this.usersService.getAll();
+  }
+
+  @Get('stats')
+  getStats(): Promise<AdminOverviewDto> {
+    return this.usersService.getStats();
+  }
+
+  @Get('role/:role')
+  getByRole(@Param('role') role: string): Promise<UserReadDto[]> {
+    return this.usersService.getByRole(role);
   }
 
   @Get(':id')
