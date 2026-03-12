@@ -6,7 +6,7 @@ import { HostelAmenitiesService } from './amenities/hostel-amenities.service';
 import { CleanupDeletedDataService } from './images/cleanup-deleted-data.service';
 import { HostelImagesController } from './images/hostel-images.controller';
 import { HostelImagesService } from './images/hostel-images.service';
-import { LocalImageStorageService } from './images/local-image-storage.service';
+import { StorageProvider } from './images/storage.provider';
 import { HostelReviewsController } from './reviews/hostel-reviews.controller';
 import { HostelReviewsService } from './reviews/hostel-reviews.service';
 import { HostelSubscriptionsController } from './subscriptions/hostel-subscriptions.controller';
@@ -35,7 +35,7 @@ import { HostelListingsService } from './listings/hostel-listings.service';
     HostelListingsService,
     HostelAmenitiesService,
     HostelReviewsService,
-    LocalImageStorageService,
+    StorageProvider,
     HostelImagesService,
     CleanupDeletedDataService,
     HostelVerificationService,

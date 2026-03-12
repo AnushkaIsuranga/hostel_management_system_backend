@@ -34,6 +34,7 @@
   },
   "homepage": "https://github.com/AnushkaIsuranga/hostel_management_system_backend#readme",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1007.0",
     "@nestjs/common": "^11.1.16",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.1.16",
