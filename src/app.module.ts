@@ -7,6 +7,7 @@ import { ActivityTrackingMiddleware } from './auth/middleware/activity-tracking.
 import { AmenitiesModule } from './amenities/amenities.module';
 import { ProblemDetailsFilter } from './common/exceptions/problem-details.filter';
 import { AppConfigModule } from './config/app-config.module';
+import { HealthController } from './health.controller';
 import { HostelsModule } from './hostels/hostels.module';
 import { InteractionEventsModule } from './interaction-events/interaction-events.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -19,7 +20,6 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
     }),
     AppConfigModule,
     PrismaModule,
@@ -32,7 +32,7 @@ import { UsersModule } from './users/users.module';
     InteractionEventsModule,
     StudentPreferencesModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [
     {
       provide: APP_FILTER,

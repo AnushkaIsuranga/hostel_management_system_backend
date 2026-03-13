@@ -231,7 +231,9 @@ Current workflow:
 
 ## 7) Seed Behavior
 
-`prisma/seed.ts` creates a single admin user only when there are no non-deleted users.
+The container startup runs `prisma migrate deploy`, then `prisma/seed.ts`, then starts the NestJS app.
+
+`prisma/seed.ts` upserts the configured admin user by `AdminCredentials__Email`, so startup is idempotent and the admin account is recreated or reactivated automatically when needed.
 
 Required env vars:
 - `AdminCredentials__FullName`
@@ -413,10 +415,10 @@ All endpoints below are under `/api`.
       - `score`
 
 - `POST /hostels`
-  - Public
+  - Auth required (`Bearer` token)
+  - Allowed roles: `Owner`, `Admin`
   - Body: `HostelCreateDto`
     - `name`
-    - `ownerId`
     - `description`
     - `city`
     - `address`
@@ -428,6 +430,9 @@ All endpoints below are under `/api`.
     - `googleMapsUrl?`
     - `status`
     - `images?` as `string[]`
+  - Owner behavior:
+    - `ownerId` is derived from the authenticated user
+    - clients should not send `ownerId` in the request body
   - Location behavior:
     - accepts explicit `latitude` and `longitude`
     - otherwise requires `googleMapsUrl`

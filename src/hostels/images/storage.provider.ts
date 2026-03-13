@@ -11,15 +11,25 @@ export const STORAGE_SERVICE_TOKEN = 'StorageService';
 export const StorageProvider = {
   provide: STORAGE_SERVICE_TOKEN,
   useFactory: (configService: AppConfigService): StorageService => {
-    const storageDriver = process.env.STORAGE_DRIVER || 'local';
+    const explicitDriver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
+    const databaseUrl = process.env.DATABASE_URL ?? '';
+    const usesLocalDatabase = /localhost|127\.0\.0\.1/i.test(databaseUrl);
 
-    logger.log(`Initializing storage driver: ${storageDriver}`);
+    const storageDriver =
+      explicitDriver === 'local' || explicitDriver === 's3'
+        ? explicitDriver
+        : configService.nodeEnv === 'development' || usesLocalDatabase
+          ? 'local'
+          : 's3';
+
+    logger.log(`Initializing storage driver: ${storageDriver}${explicitDriver ? ` (explicit: ${explicitDriver})` : ' (auto)'}`);
 
     if (storageDriver === 's3') {
-      if (!process.env.AWS_BUCKET) {
-        throw new Error('AWS_BUCKET environment variable is required when STORAGE_DRIVER=s3');
+      const bucket = process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET;
+      if (!bucket) {
+        throw new Error('AWS_S3_BUCKET (or AWS_BUCKET) environment variable is required when using S3 storage.');
       }
-      logger.log(`Using S3 storage (bucket: ${process.env.AWS_BUCKET})`);
+      logger.log(`Using S3 storage (bucket: ${bucket})`);
       return new S3StorageService(configService);
     }
 
