@@ -120,13 +120,19 @@ jobs:
     if: github.ref_name == 'staging'
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug deploy script path
+        run: ls -la && test -f ./deploy.sh
+
       - name: Copy deploy script to staging EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_STAGING_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_STAGING_KEY }}
-          source: deploy.sh
+          source: ./deploy.sh
           target: /home/ubuntu/apps/hostel-api
 
       - name: Deploy to staging EC2
@@ -146,13 +152,19 @@ jobs:
     if: github.ref_name == 'main'
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Debug deploy script path
+        run: ls -la && test -f ./deploy.sh
+
       - name: Copy deploy script to production EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_PROD_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_PROD_KEY }}
-          source: deploy.sh
+          source: ./deploy.sh
           target: /home/ubuntu/apps/hostel-api
 
       - name: Deploy to production EC2
