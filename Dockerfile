@@ -18,7 +18,7 @@ COPY . .
 RUN npx prisma generate
 RUN npm run build
 
-# RUN mkdir -p /app/wwwroot/uploads
+RUN mkdir -p /app/wwwroot/uploads
 
 
 FROM gcr.io/distroless/nodejs20-debian12:nonroot
@@ -32,7 +32,7 @@ COPY --from=builder --chown=nonroot:nonroot /app/package-lock.json .
 COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist
 COPY --from=builder --chown=nonroot:nonroot /app/prisma ./prisma
-# COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot
+COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot
 
 EXPOSE 3000
 
