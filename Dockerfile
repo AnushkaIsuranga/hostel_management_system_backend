@@ -11,13 +11,15 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN npm install
 
 COPY . .
 
 RUN npx prisma generate
 RUN npm run build
-RUN mkdir -p /app/wwwroot/uploads   # ← add this here in builder
+RUN mkdir -p /app/wwwroot/uploads
 
 FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runner
 
@@ -30,7 +32,7 @@ COPY --from=builder --chown=nonroot:nonroot /app/package-lock.json ./package-loc
 COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist
 COPY --from=builder --chown=nonroot:nonroot /app/prisma ./prisma
-COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot  # ← copy from builder
+COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot
 
 EXPOSE 3000
 
