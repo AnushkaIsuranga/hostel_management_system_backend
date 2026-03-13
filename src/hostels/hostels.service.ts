@@ -190,7 +190,7 @@ export class HostelsService {
       });
   }
 
-  async create(dto: HostelCreateDto): Promise<HostelReadDto> {
+  async create(ownerId: string, dto: HostelCreateDto): Promise<HostelReadDto> {
     const coordinates = await this.resolveCoordinates(dto.latitude, dto.longitude, dto.googleMapsUrl);
     const images = this.normalizeImages(dto.images);
 
@@ -198,7 +198,7 @@ export class HostelsService {
       const hostel = await this.prisma.hostel.create({
         data: {
           name: dto.name,
-          ownerId: dto.ownerId,
+          ownerId,
           description: dto.description,
           city: dto.city,
           address: dto.address,
@@ -232,7 +232,17 @@ export class HostelsService {
 
       return this.toReadDto(hostel);
     } catch (error) {
-      throw new AppConflictException('A hostel with the same unique fields already exists.', 'hostel_conflict');
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new AppConflictException('A hostel with the same unique fields already exists.', 'hostel_conflict');
+        }
+
+        if (error.code === 'P2003') {
+          throw new AppNotFoundException('The hostel owner account was not found.', 'hostel_owner_not_found');
+        }
+      }
+
+      throw error;
     }
   }
 

@@ -28,7 +28,6 @@ export interface HostelReadDto {
 
 export class HostelCreateDto {
   name: string;
-  ownerId: string;
   description: string;
   city: string;
   address: string;

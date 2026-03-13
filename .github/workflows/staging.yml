@@ -1,0 +1,117 @@
+name: Deploy Staging And Production
+
+on:
+  push:
+    branches: [staging, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Run integration tests
+        run: npm run test:integration
+
+      - name: Run e2e tests
+        run: npm run test:e2e
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
+
+      - name: Build and tag image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USER }}/hostel-api:${{ github.sha }} .
+          docker tag ${{ secrets.DOCKER_USER }}/hostel-api:${{ github.sha }} ${{ secrets.DOCKER_USER }}/hostel-api:latest
+          if [ "${GITHUB_REF_NAME}" = "staging" ]; then
+            docker tag ${{ secrets.DOCKER_USER }}/hostel-api:${{ github.sha }} ${{ secrets.DOCKER_USER }}/hostel-api:staging
+          else
+            docker tag ${{ secrets.DOCKER_USER }}/hostel-api:${{ github.sha }} ${{ secrets.DOCKER_USER }}/hostel-api:production
+          fi
+
+      - name: Push image
+        run: |
+          docker push ${{ secrets.DOCKER_USER }}/hostel-api:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USER }}/hostel-api:latest
+          if [ "${GITHUB_REF_NAME}" = "staging" ]; then
+            docker push ${{ secrets.DOCKER_USER }}/hostel-api:staging
+          else
+            docker push ${{ secrets.DOCKER_USER }}/hostel-api:production
+          fi
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref_name == 'staging'
+
+    steps:
+      - name: Copy deploy script to staging EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_STAGING_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_STAGING_KEY }}
+          source: deploy.sh
+          target: /home/ubuntu/apps/hostel-api
+
+      - name: Deploy to staging EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_STAGING_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_STAGING_KEY }}
+          script: |
+            mkdir -p /home/ubuntu/apps/hostel-api
+            chmod +x /home/ubuntu/apps/hostel-api/deploy.sh
+            IMAGE=${{ secrets.DOCKER_USER }}/hostel-api:staging APP_DIR=/home/ubuntu/apps/hostel-api /home/ubuntu/apps/hostel-api/deploy.sh
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: github.ref_name == 'main'
+
+    steps:
+      - name: Copy deploy script to production EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_PROD_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_PROD_KEY }}
+          source: deploy.sh
+          target: /home/ubuntu/apps/hostel-api
+
+      - name: Deploy to production EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_PROD_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_PROD_KEY }}
+          script: |
+            mkdir -p /home/ubuntu/apps/hostel-api
+            chmod +x /home/ubuntu/apps/hostel-api/deploy.sh
+            IMAGE=${{ secrets.DOCKER_USER }}/hostel-api:production APP_DIR=/home/ubuntu/apps/hostel-api /home/ubuntu/apps/hostel-api/deploy.sh

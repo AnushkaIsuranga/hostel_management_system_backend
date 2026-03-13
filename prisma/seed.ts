@@ -6,14 +6,6 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  const usersCount = await prisma.user.count({
-    where: { isDeleted: false },
-  });
-
-  if (usersCount > 0) {
-    return;
-  }
-
   const fullName = process.env.AdminCredentials__FullName;
   const email = process.env.AdminCredentials__Email;
   const password = process.env.AdminCredentials__Password;
@@ -22,12 +14,23 @@ async function main() {
     throw new Error('AdminCredentials__FullName, AdminCredentials__Email, and AdminCredentials__Password are required.');
   }
 
-  await prisma.user.create({
-    data: {
+  const passwordHash = await argon2.hash(password);
+
+  await prisma.user.upsert({
+    where: { email },
+    update: {
+      fullName,
+      passwordHash,
+      role: 2,
+      isDeleted: false,
+      deletedAt: null,
+      updatedAt: new Date(),
+    },
+    create: {
       fullName,
       email,
       phoneNumber: '',
-      passwordHash: await argon2.hash(password),
+      passwordHash,
       role: 2,
       lastActivityAt: new Date(),
       createdAt: new Date(),

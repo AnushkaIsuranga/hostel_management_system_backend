@@ -176,9 +176,8 @@ describe('HostelsService', () => {
 
   it('create validates max image limit', async () => {
     await expect(
-      service.create({
+      service.create('owner-1', {
         name: 'H',
-        ownerId: 'owner-1',
         description: 'D',
         city: 'C',
         address: 'A',
@@ -195,9 +194,8 @@ describe('HostelsService', () => {
 
   it('create rejects invalid coordinates', async () => {
     await expect(
-      service.create({
+      service.create('owner-1', {
         name: 'H',
-        ownerId: 'owner-1',
         description: 'D',
         city: 'C',
         address: 'A',
@@ -215,9 +213,8 @@ describe('HostelsService', () => {
   it('create extracts coordinates from Google Maps URL query params', async () => {
     prisma.hostel.create.mockResolvedValue(makeHostelEntity({ latitude: 6.9, longitude: 79.8 }));
 
-    const result = await service.create({
+    const result = await service.create('owner-1', {
       name: 'H',
-      ownerId: 'owner-1',
       description: 'D',
       city: 'C',
       address: 'A',
@@ -244,9 +241,8 @@ describe('HostelsService', () => {
   it('create persists hostel with canonical map URL from coordinates', async () => {
     prisma.hostel.create.mockResolvedValue(makeHostelEntity());
 
-    const result = await service.create({
+    const result = await service.create('owner-1', {
       name: 'H',
-      ownerId: 'owner-1',
       description: 'D',
       city: 'C',
       address: 'A',

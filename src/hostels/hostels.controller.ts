@@ -9,9 +9,13 @@ import {
   ParseUUIDPipe,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 
 import { CurrentUserDecorator } from '../common/decorators/current-user.decorator';
+import { UserRole } from '../common/enums/app.enums';
+import { AppForbiddenException } from '../common/exceptions/app-exception';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/interfaces/current-user.interface';
 import {
   HostelCreateDto,
@@ -46,8 +50,16 @@ export class HostelsController {
   }
 
   @Post()
-  create(@Body() dto: HostelCreateDto): Promise<HostelReadDto> {
-    return this.hostelsService.create(dto);
+  @UseGuards(JwtAuthGuard)
+  create(
+    @Body() dto: HostelCreateDto,
+    @CurrentUserDecorator() currentUser: CurrentUser,
+  ): Promise<HostelReadDto> {
+    if (currentUser.role !== UserRole.Owner && currentUser.role !== UserRole.Admin) {
+      throw new AppForbiddenException('Only owners and admins can create hostels.');
+    }
+
+    return this.hostelsService.create(currentUser.userId, dto);
   }
 
   @Put(':id')

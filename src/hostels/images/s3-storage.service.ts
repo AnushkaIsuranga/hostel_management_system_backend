@@ -40,9 +40,9 @@ export class S3StorageService implements StorageService {
   async uploadImage(file: Express.Multer.File, hostelId: string): Promise<StoredImageResult> {
     this.validateImage(file);
 
-    const bucket = process.env.AWS_BUCKET;
+    const bucket = process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET;
     if (!bucket) {
-      throw new AppBadRequestException('AWS_BUCKET environment variable is not configured.');
+      throw new AppBadRequestException('AWS_S3_BUCKET (or AWS_BUCKET) environment variable is not configured.');
     }
 
     // Process image to full size variant (1200px max width)
@@ -61,7 +61,7 @@ export class S3StorageService implements StorageService {
         }),
       );
 
-      const imageUrl = `https://${bucket}.s3.${process.env.AWS_REGION || 'us-east-1'}.amazonaws.com/${s3Key}`;
+      const imageUrl = `https://${bucket}.s3.amazonaws.com/${s3Key}`;
 
       return {
         imageUrl,
@@ -80,9 +80,9 @@ export class S3StorageService implements StorageService {
       return false;
     }
 
-    const bucket = process.env.AWS_BUCKET;
+    const bucket = process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET;
     if (!bucket) {
-      this.logger.warn('AWS_BUCKET not configured. Cannot delete image.');
+      this.logger.warn('AWS_S3_BUCKET/AWS_BUCKET not configured. Cannot delete image.');
       return false;
     }
 
@@ -142,8 +142,10 @@ export class S3StorageService implements StorageService {
       // Extract path and remove leading slash
       let key = url.pathname.slice(1);
 
-      // Handle virtual-hosted-style URLs: https://bucket.s3.region.amazonaws.com/key
-      if (url.hostname.startsWith(`${bucket}.s3`)) {
+      // Handle virtual-hosted-style URLs:
+      // - https://bucket.s3.amazonaws.com/key
+      // - https://bucket.s3.region.amazonaws.com/key
+      if (url.hostname === `${bucket}.s3.amazonaws.com` || url.hostname.startsWith(`${bucket}.s3.`)) {
         return key;
       }
 
