@@ -17,6 +17,7 @@ COPY . .
 
 RUN npx prisma generate
 RUN npm run build
+RUN mkdir -p /app/wwwroot/uploads   # ← add this here in builder
 
 FROM gcr.io/distroless/nodejs20-debian12:nonroot AS runner
 
@@ -29,8 +30,7 @@ COPY --from=builder --chown=nonroot:nonroot /app/package-lock.json ./package-loc
 COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist
 COPY --from=builder --chown=nonroot:nonroot /app/prisma ./prisma
-# Copy wwwroot for local storage support (ignored when STORAGE_DRIVER=s3)
-RUN mkdir -p /app/wwwroot/uploads
+COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot  # ← copy from builder
 
 EXPOSE 3000
 
