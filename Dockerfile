@@ -30,7 +30,7 @@ COPY --from=builder --chown=nonroot:nonroot /app/node_modules ./node_modules
 COPY --from=builder --chown=nonroot:nonroot /app/dist ./dist
 COPY --from=builder --chown=nonroot:nonroot /app/prisma ./prisma
 # Copy wwwroot for local storage support (ignored when STORAGE_DRIVER=s3)
-COPY --from=builder --chown=nonroot:nonroot /app/wwwroot ./wwwroot
+RUN mkdir -p /app/wwwroot/uploads
 
 EXPOSE 3000
 
