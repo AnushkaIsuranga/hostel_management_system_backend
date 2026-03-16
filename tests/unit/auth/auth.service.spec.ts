@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import argon2 from 'argon2';
 
 import { AuthService } from '../../../src/auth/auth.service';
-import { AppConflictException, AppUnauthorizedException } from '../../../src/common/exceptions/app-exception';
+import {
+  AppBadRequestException,
+  AppConflictException,
+  AppUnauthorizedException,
+} from '../../../src/common/exceptions/app-exception';
 import { UserRole } from '../../../src/common/enums/app.enums';
 import { makeUser, makeJwtService, makeAuthConfigService } from '../../helpers';
 
@@ -189,6 +193,49 @@ describe('AuthService', () => {
       });
 
       expect(result.response.userId).toBe('user-1');
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: UserRole.Student }),
+        }),
+      );
+    });
+
+    it('creates an owner when role Owner is requested', async () => {
+      const user = makeUser({ role: UserRole.Owner });
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue(user);
+      prisma.refreshToken.create.mockResolvedValue({});
+
+      const result = await service.register({
+        fullName: 'Owner User',
+        email: 'owner@example.com',
+        password: 'password123',
+        phoneNumber: '1234567890',
+        role: 'Owner',
+      });
+
+      expect(result.response.role).toBe(UserRole.Owner);
+      expect(prisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: UserRole.Owner }),
+        }),
+      );
+    });
+
+    it('rejects admin self-registration', async () => {
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.register({
+          fullName: 'Admin User',
+          email: 'admin@example.com',
+          password: 'password123',
+          phoneNumber: '1234567890',
+          role: 'Admin',
+        }),
+      ).rejects.toThrow(AppBadRequestException);
+
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
 
     it('throws AppConflictException when email already exists', async () => {

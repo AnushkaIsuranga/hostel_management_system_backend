@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { UserRole } from '../common/enums/app.enums';
+import { tryParseUserRole, UserRole } from '../common/enums/app.enums';
 import {
   AppBadRequestException,
   AppConflictException,
@@ -197,23 +197,9 @@ export class UsersService {
   }
 
   private parseRole(rawRole: string): UserRole {
-    const normalized = rawRole?.trim().toLowerCase();
-
-    if (normalized === 'student') {
-      return UserRole.Student;
-    }
-
-    if (normalized === 'owner') {
-      return UserRole.Owner;
-    }
-
-    if (normalized === 'admin') {
-      return UserRole.Admin;
-    }
-
-    const numericRole = Number.parseInt(normalized, 10);
-    if (Number.isInteger(numericRole) && [UserRole.Student, UserRole.Owner, UserRole.Admin].includes(numericRole)) {
-      return numericRole as UserRole;
+    const parsedRole = tryParseUserRole(rawRole);
+    if (parsedRole !== null) {
+      return parsedRole;
     }
 
     throw new AppBadRequestException('Invalid role. Use Student, Owner, Admin or 0, 1, 2.', 'invalid_role');

@@ -46,6 +46,7 @@ describe('AuthController Integration', () => {
         accessToken: 'access-1',
         accessTokenExpiresAt: new Date('2030-01-01T00:00:00.000Z'),
         userId: 'user-1',
+        fullName: 'User One',
         email: 'user@test.com',
         role: UserRole.Student,
       },
@@ -61,7 +62,13 @@ describe('AuthController Integration', () => {
     expect(authService.login).toHaveBeenCalledWith(
       expect.objectContaining({ email: 'user@test.com', rememberMe: true }),
     );
-    expect(response.body).toEqual(expect.objectContaining({ accessToken: 'access-1', userId: 'user-1' }));
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        accessToken: 'access-1',
+        userId: 'user-1',
+        fullName: 'User One',
+      }),
+    );
     expect(response.headers['set-cookie']).toBeDefined();
     expect(response.headers['set-cookie'][0]).toContain('refreshToken=refresh-1');
     expect(response.headers['set-cookie'][0]).toContain('HttpOnly');
