@@ -5,11 +5,15 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { roleNameToValue } from '../../common/enums/app.enums';
 import { CurrentUser } from '../../common/interfaces/current-user.interface';
 import { AppConfigService } from '../../config/app-config.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: AppConfigService) {
+  constructor(
+    configService: AppConfigService,
+    private readonly prisma: PrismaService,
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
@@ -19,7 +23,17 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  validate(payload: JwtPayload): CurrentUser {
+  async validate(payload: JwtPayload): Promise<CurrentUser> {
+    await this.prisma.user.updateMany({
+      where: {
+        id: payload.sub,
+        isDeleted: false,
+      },
+      data: {
+        lastActivityAt: new Date(),
+      },
+    });
+
     return {
       userId: payload.sub,
       email: payload.email,
