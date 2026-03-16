@@ -98,6 +98,25 @@ describe('AuthService', () => {
       expect(result.response.accessToken).toBeTruthy();
     });
 
+    it('returns new tokens for an active admin session within idle timeout', async () => {
+      const adminUser = makeUser({
+        role: UserRole.Admin,
+        lastActivityAt: new Date(Date.now() - 5 * 60_000),
+      });
+      const tokenEntity = makeRefreshToken({ user: adminUser });
+      prisma.refreshToken.findFirst.mockResolvedValue(tokenEntity);
+      prisma.refreshToken.update.mockResolvedValue({});
+      prisma.refreshToken.create.mockResolvedValue({});
+
+      const result = await service.refresh('active-admin-token');
+
+      expect(result.response.accessToken).toBeTruthy();
+      expect(prisma.refreshToken.update).toHaveBeenCalledWith({
+        where: { id: 'token-1' },
+        data: { revoked: true },
+      });
+    });
+
     it('throws AppUnauthorizedException when token is missing', async () => {
       await expect(service.refresh('')).rejects.toThrow(AppUnauthorizedException);
       await expect(service.refresh('   ')).rejects.toThrow(AppUnauthorizedException);
