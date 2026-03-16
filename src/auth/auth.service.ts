@@ -6,10 +6,11 @@ import { User } from '@prisma/client';
 import argon2 from 'argon2';
 
 import {
+  AppBadRequestException,
   AppConflictException,
   AppUnauthorizedException,
 } from '../common/exceptions/app-exception';
-import { UserRole, userRoleToName } from '../common/enums/app.enums';
+import { tryParseUserRole, UserRole, userRoleToName } from '../common/enums/app.enums';
 import { AppConfigService } from '../config/app-config.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRegisterDto } from '../users/dto/users.dto';
@@ -111,6 +112,19 @@ export class AuthService {
       throw new AppConflictException('A user with this email already exists.', 'email_conflict');
     }
 
+    let role = UserRole.Student;
+    if (dto.role !== undefined && dto.role !== null) {
+      const parsedRole = tryParseUserRole(dto.role);
+      if (parsedRole === null || parsedRole === UserRole.Admin) {
+        throw new AppBadRequestException(
+          'Invalid role. Only Student and Owner can self-register.',
+          'invalid_role',
+        );
+      }
+
+      role = parsedRole;
+    }
+
     let user: User;
     try {
       user = await this.prisma.user.create({
@@ -119,7 +133,7 @@ export class AuthService {
           email: dto.email,
           phoneNumber: dto.phoneNumber,
           passwordHash: await argon2.hash(dto.password),
-          role: UserRole.Student,
+          role,
           lastActivityAt: new Date(),
           createdAt: new Date(),
           isDeleted: false,
@@ -154,6 +168,7 @@ export class AuthService {
         accessToken: accessToken.token,
         accessTokenExpiresAt: accessToken.expiresAt,
         userId: user.id,
+        fullName: user.fullName,
         email: user.email,
         role: user.role as UserRole,
       },

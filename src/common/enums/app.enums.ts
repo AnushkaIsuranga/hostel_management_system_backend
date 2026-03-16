@@ -57,3 +57,29 @@ export function roleNameToValue(roleName?: string | null): UserRole {
       return UserRole.Student;
   }
 }
+
+export function tryParseUserRole(roleInput?: string | number | null): UserRole | null {
+  if (typeof roleInput === 'number') {
+    return [UserRole.Student, UserRole.Owner, UserRole.Admin].includes(roleInput) ? roleInput : null;
+  }
+
+  const normalized = `${roleInput ?? ''}`.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  switch (normalized) {
+    case 'student':
+      return UserRole.Student;
+    case 'owner':
+      return UserRole.Owner;
+    case 'admin':
+      return UserRole.Admin;
+    default: {
+      const numericRole = Number.parseInt(normalized, 10);
+      return Number.isInteger(numericRole) && [UserRole.Student, UserRole.Owner, UserRole.Admin].includes(numericRole)
+        ? (numericRole as UserRole)
+        : null;
+    }
+  }
+}
