@@ -134,7 +134,7 @@ model InteractionEvent {
   userId     String?  @db.Uuid
   hostelId   String?  @db.Uuid
   eventType  Int
-  eventData  String?
+  eventData  Json?
   sessionId  String   @db.VarChar(100)
   createdAt  DateTime @default(now())
   updatedAt  DateTime?

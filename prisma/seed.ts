@@ -37,6 +37,8 @@ async function main() {
       isDeleted: false,
     },
   });
+
+  console.log(`Admin user seeded: ${email}`);
 }
 
 main()
