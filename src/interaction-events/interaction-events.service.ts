@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { InteractionType } from '../common/enums/app.enums';
 import { AppNotFoundException } from '../common/exceptions/app-exception';
@@ -38,12 +39,14 @@ export class InteractionEventsService {
   }
 
   async create(dto: InteractionEventCreateDto): Promise<InteractionEventReadDto> {
+    const eventData = this.toJsonInput(dto.eventData);
+
     const event = await this.prisma.interactionEvent.create({
       data: {
         userId: dto.userId ?? null,
         hostelId: dto.hostelId ?? null,
         eventType: dto.eventType,
-        eventData: dto.eventData ?? null,
+        ...(eventData === undefined ? {} : { eventData }),
         sessionId: dto.sessionId,
         createdAt: new Date(),
         isDeleted: false,
@@ -54,6 +57,8 @@ export class InteractionEventsService {
   }
 
   async update(id: string, dto: InteractionEventUpdateDto): Promise<InteractionEventReadDto> {
+    const eventData = this.toJsonInput(dto.eventData);
+
     const event = await this.prisma.interactionEvent.findFirst({
       where: {
         id,
@@ -71,7 +76,7 @@ export class InteractionEventsService {
         userId: dto.userId ?? null,
         hostelId: dto.hostelId ?? null,
         eventType: dto.eventType,
-        eventData: dto.eventData ?? null,
+        ...(eventData === undefined ? {} : { eventData }),
         sessionId: dto.sessionId,
         updatedAt: new Date(),
       },
@@ -107,7 +112,7 @@ export class InteractionEventsService {
     userId: string | null;
     hostelId: string | null;
     eventType: number;
-    eventData: string | null;
+    eventData: Prisma.JsonValue | null;
     sessionId: string;
     createdAt: Date;
     updatedAt: Date | null;
@@ -122,5 +127,13 @@ export class InteractionEventsService {
       createdAt: event.createdAt,
       updatedAt: event.updatedAt,
     };
+  }
+
+  private toJsonInput(value: unknown): Prisma.InputJsonValue | undefined {
+    if (value === undefined || value === null) {
+      return undefined;
+    }
+
+    return value as Prisma.InputJsonValue;
   }
 }
