@@ -2,7 +2,7 @@
 
 ## Overview
 
-The backend now uses a **storage abstraction layer** that supports both local filesystem storage (development) and AWS S3 storage (production/staging). This allows the same codebase to work in both local development and cloud environments without code changes.
+The backend now uses a **storage abstraction layer** that supports local filesystem storage (development), AWS S3 storage, and Cloudinary storage. This allows the same codebase to work in both local development and cloud environments without code changes.
 
 ## Architecture
 
@@ -17,10 +17,11 @@ interface StorageService {
 }
 ```
 
-### Two Implementations
+### Implementations
 
 1. **LocalImageStorageService** - Stores files on local disk (`wwwroot/uploads/`)
 2. **S3StorageService** - Stores files on AWS S3
+3. **CloudinaryStorageService** - Stores files on Cloudinary
 
 ### Factory Provider
 
@@ -40,6 +41,29 @@ STORAGE_DRIVER=local
 - Files uploaded to: `wwwroot/uploads/hostels/{hostelId}/full/{fileName}.webp`
 - Also creates variants: `thumbnail` and `card` folders
 - Perfect for development - no external dependencies
+
+### Staging (Cloudinary Storage)
+
+**`.env`:**
+```env
+STORAGE_DRIVER=cloudinary
+CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>
+```
+
+Alternative to `CLOUDINARY_URL`:
+
+```env
+STORAGE_DRIVER=cloudinary
+CLOUDINARY_CLOUD_NAME=<cloud_name>
+CLOUDINARY_API_KEY=<api_key>
+CLOUDINARY_API_SECRET=<api_secret>
+```
+
+**Behavior:**
+- Files uploaded to Cloudinary under `unihome/hostels/{hostelId}/...`
+- Uploads are converted to WebP (`1200px` max width) before upload
+- Returned URL is Cloudinary `secure_url`
+- Deletions use Cloudinary `public_id` extraction from stored URL
 
 ### Production/Staging (S3 Storage)
 
@@ -71,7 +95,8 @@ HostelImagesService
 StorageService (interface)
     ↓
     ├─→ LocalImageStorageService  (if STORAGE_DRIVER=local)
-    └─→ S3StorageService            (if STORAGE_DRIVER=s3)
+    ├─→ S3StorageService            (if STORAGE_DRIVER=s3)
+    └─→ CloudinaryStorageService    (if STORAGE_DRIVER=cloudinary)
     ↓
 Returns: { imageUrl, fileSize, contentType, storedFileName }
 ```
@@ -82,7 +107,7 @@ Returns: { imageUrl, fileSize, contentType, storedFileName }
 2. **Processing**: Converts to WebP format with 80% quality
 3. **Storage**:
    - **Local**: Saves three variants (thumbnail 300px, card 600px, full 1200px)
-   - **S3**: Saves only full variant (1200px) to reduce storage cost
+  - **S3/Cloudinary**: Saves only full variant (1200px) to reduce storage cost
 4. **Return**: URL that can be immediately served to clients
 
 ### Delete Flow
@@ -93,7 +118,8 @@ HostelImagesService
 StorageService.deleteImage(url)
     ↓
     ├─→ LocalImageStorageService  - Deletes from filesystem
-    └─→ S3StorageService            - Deletes object from S3
+    ├─→ S3StorageService            - Deletes object from S3
+    └─→ CloudinaryStorageService    - Deletes image by public_id
 ```
 
 ## Docker Deployment
