@@ -1,0 +1,103 @@
+services:
+  - type: web
+    name: unihome-backend-staging
+    runtime: docker
+    plan: standard
+    
+    # Docker Configuration
+    dockerfile: ./Dockerfile
+    dockerContext: ./
+    
+    # Port Configuration
+    port: 3000
+    
+    # Environment
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: PORT
+        value: 3000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: unihome-postgres-staging
+          property: connectionString
+      
+      # JWT Configuration
+      - key: JwtSettings__Secret
+        sync: false  # Set via dashboard
+      - key: JwtSettings__Issuer
+        value: UniHome
+      - key: JwtSettings__Audience
+        value: UniHomeUsers
+      - key: JwtSettings__UserAccessExpiryMinutes
+        value: 15
+      - key: JwtSettings__AdminAccessExpiryMinutes
+        value: 15
+      
+      # Auth Settings
+      - key: AuthSettings__UserRefreshExpiryDays
+        value: 1
+      - key: AuthSettings__UserRefreshExpiryRememberDays
+        value: 30
+      - key: AuthSettings__AdminRefreshExpiryHours
+        value: 12
+      - key: AuthSettings__AdminIdleTimeoutMinutes
+        value: 30
+      - key: AuthSettings__RefreshCookieName
+        value: refreshToken
+      
+      # CORS Configuration - Allow Render frontend and custom domain
+      - key: Cors__AllowedOrigins
+        value: https://staging.unihome.lk,https://unihome.lk,https://app.unihome.lk
+      
+      # Storage Configuration
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: AWS_REGION
+        value: us-east-1
+      - key: AWS_BUCKET
+        sync: false  # Set via dashboard (AWS bucket name)
+      - key: AWS_ACCESS_KEY_ID
+        sync: false  # Set via dashboard
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false  # Set via dashboard
+      
+      # CDN Configuration (if using CloudFront)
+      - key: ImageStorage__CdnBaseUrl
+        value: ''  # Set via dashboard if using CDN
+      
+      # Data Cleanup
+      - key: DataCleanup__RetentionDays
+        value: 60
+      - key: DataCleanup__RunIntervalHours
+        value: 24
+      
+      # Admin Credentials (set via dashboard)
+      - key: AdminCredentials__FullName
+        value: System Administrator
+      - key: AdminCredentials__Email
+        sync: false  # Set via dashboard
+      - key: AdminCredentials__Password
+        sync: false  # Set via dashboard
+    
+    # Health Check
+    healthCheckPath: /health
+    
+    # Scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+    
+    # Domain Configuration
+    domains:
+      - staging.unihome.lk
+    
+    # Build Configuration
+    buildCommand: npm run build && npm run prisma:generate
+    startCommand: npm run prisma:deploy && npm start
+
+databases:
+  - name: unihome-postgres-staging
+    plan: standard
+    region: singapore  # or your preferred region
+    postgresMajorVersion: 16

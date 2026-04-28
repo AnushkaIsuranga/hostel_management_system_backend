@@ -12,15 +12,30 @@ This documentation is aligned with the current NestJS + Prisma implementation in
 
 ## 1) Runtime and Base URL
 
-- Runtime: NestJS 11, Prisma, PostgreSQL
-- Default development base URL: `http://localhost:3000`
-- API base path: `/api`
-- Static files are served from `wwwroot`
-- Uploaded hostel images are publicly reachable under `/uploads/...`
-- Swagger is not configured in the current source
-- HTTPS is not configured in the Nest bootstrap code
+### Environment URLs
 
-Port is configurable through `PORT`. The checked-in `.env.example` uses `3000`.
+| Environment | URL | Database | Storage |
+|-------------|-----|----------|---------|
+| Development | `http://localhost:3000` | Local PostgreSQL | Local (`wwwroot/`) |
+| **Staging** | **`https://staging.unihome.lk`** | Render PostgreSQL | AWS S3 |
+| **Production** | **`https://api.unihome.lk`** | AWS RDS | AWS S3 |
+
+### Configuration
+
+- Runtime: NestJS 11, Prisma, PostgreSQL
+- API base path: `/api`
+- Port: Configurable via `PORT` environment variable (default: `3000`)
+- Static files served from: `wwwroot`
+- Uploaded hostel images: `https://{domain}/uploads/...` (local) or S3 URL (cloud)
+- Health check: `GET /health` (no auth required)
+- Swagger: Not configured (see [API_DOCUMENTATION.md](API_DOCUMENTATION.md) for endpoint docs)
+
+### Deployment Notes
+
+- **Staging (Render)**: Automatic deploys from GitHub, managed PostgreSQL, SSL auto-renewed
+- **Production (AWS)**: Manual deployment via EC2, RDS database, ACM SSL certificate
+- See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup and [DEPLOYMENT_QUICK_START.md](DEPLOYMENT_QUICK_START.md) for quick reference
+- Domain: `unihome.lk` (see [DNS_SETUP.md](DNS_SETUP.md) for DNS configuration)
 
 ## 2) Authentication and Session
 
