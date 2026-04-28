@@ -1,9 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 
 import { InteractionType } from '../common/enums/app.enums';
 import { AppNotFoundException } from '../common/exceptions/app-exception';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import {
   InteractionEventCreateDto,
   InteractionEventReadDto,
@@ -12,10 +11,10 @@ import {
 
 @Injectable()
 export class InteractionEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<InteractionEventReadDto[]> {
-    const events = await this.prisma.interactionEvent.findMany({
+    const events = await this.db.interactionEvent.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },
     });
@@ -24,7 +23,7 @@ export class InteractionEventsService {
   }
 
   async getById(id: string): Promise<InteractionEventReadDto> {
-    const event = await this.prisma.interactionEvent.findFirst({
+    const event = await this.db.interactionEvent.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -41,12 +40,12 @@ export class InteractionEventsService {
   async create(dto: InteractionEventCreateDto): Promise<InteractionEventReadDto> {
     const eventData = this.toJsonInput(dto.eventData);
 
-    const event = await this.prisma.interactionEvent.create({
+    const event = await this.db.interactionEvent.create({
       data: {
         userId: dto.userId ?? null,
         hostelId: dto.hostelId ?? null,
         eventType: dto.eventType,
-        ...(eventData === undefined ? {} : { eventData }),
+        eventData: eventData ?? null,
         sessionId: dto.sessionId,
         createdAt: new Date(),
         isDeleted: false,
@@ -59,7 +58,7 @@ export class InteractionEventsService {
   async update(id: string, dto: InteractionEventUpdateDto): Promise<InteractionEventReadDto> {
     const eventData = this.toJsonInput(dto.eventData);
 
-    const event = await this.prisma.interactionEvent.findFirst({
+    const event = await this.db.interactionEvent.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -70,7 +69,7 @@ export class InteractionEventsService {
       throw new AppNotFoundException('Interaction event not found.');
     }
 
-    const updated = await this.prisma.interactionEvent.update({
+    const updated = await this.db.interactionEvent.update({
       where: { id },
       data: {
         userId: dto.userId ?? null,
@@ -86,7 +85,7 @@ export class InteractionEventsService {
   }
 
   async delete(id: string) {
-    const event = await this.prisma.interactionEvent.findFirst({
+    const event = await this.db.interactionEvent.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -97,7 +96,7 @@ export class InteractionEventsService {
       throw new AppNotFoundException('Interaction event not found.');
     }
 
-    await this.prisma.interactionEvent.update({
+    await this.db.interactionEvent.update({
       where: { id },
       data: {
         isDeleted: true,
@@ -112,7 +111,7 @@ export class InteractionEventsService {
     userId: string | null;
     hostelId: string | null;
     eventType: number;
-    eventData: Prisma.JsonValue | null;
+    eventData: unknown;
     sessionId: string;
     createdAt: Date;
     updatedAt: Date | null;
@@ -129,11 +128,11 @@ export class InteractionEventsService {
     };
   }
 
-  private toJsonInput(value: unknown): Prisma.InputJsonValue | undefined {
-    if (value === undefined || value === null) {
+  private toJsonInput(value: unknown): unknown | undefined {
+    if (value === undefined) {
       return undefined;
     }
 
-    return value as Prisma.InputJsonValue;
+    return value;
   }
 }

@@ -7,15 +7,15 @@ import {
   AppForbiddenException,
   AppNotFoundException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import { HostelVerificationRequestReadDto } from './dto/hostel-verification.dto';
 
 @Injectable()
 export class HostelVerificationService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async requestVerification(hostelId: string, ownerId: string): Promise<HostelVerificationRequestReadDto> {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id: hostelId,
         ownerId,
@@ -27,7 +27,7 @@ export class HostelVerificationService {
       throw new AppForbiddenException('You can only request verification for your own hostel.', 'hostel_owner_required');
     }
 
-    const pending = await this.prisma.hostelVerificationRequest.findFirst({
+    const pending = await this.db.hostelVerificationRequest.findFirst({
       where: {
         hostelId,
         status: HostelVerificationStatus.Pending,
@@ -39,8 +39,8 @@ export class HostelVerificationService {
       throw new AppConflictException('A pending verification request already exists.', 'verification_pending_exists');
     }
 
-    const request = await this.prisma.$transaction(async (prisma) => {
-      const created = await prisma.hostelVerificationRequest.create({
+    const request = await this.db.$transaction(async (database) => {
+      const created = await database.hostelVerificationRequest.create({
         data: {
           hostelId,
           requestedByUserId: ownerId,
@@ -50,7 +50,7 @@ export class HostelVerificationService {
         },
       });
 
-      await prisma.hostel.update({
+      await database.hostel.update({
         where: { id: hostelId },
         data: {
           verificationStatus: HostelVerificationStatus.Pending,
@@ -69,7 +69,7 @@ export class HostelVerificationService {
     adminId: string,
     adminNotes?: string | null,
   ): Promise<HostelVerificationRequestReadDto> {
-    const request = await this.prisma.hostelVerificationRequest.findFirst({
+    const request = await this.db.hostelVerificationRequest.findFirst({
       where: {
         id: requestId,
         isDeleted: false,
@@ -84,8 +84,8 @@ export class HostelVerificationService {
       throw new AppBadRequestException('Only pending requests can be approved.', 'verification_request_not_pending');
     }
 
-    const updatedRequest = await this.prisma.$transaction(async (prisma) => {
-      const approved = await prisma.hostelVerificationRequest.update({
+    const updatedRequest = await this.db.$transaction(async (database) => {
+      const approved = await database.hostelVerificationRequest.update({
         where: { id: requestId },
         data: {
           status: HostelVerificationStatus.Approved,
@@ -96,7 +96,7 @@ export class HostelVerificationService {
         },
       });
 
-      await prisma.hostel.update({
+      await database.hostel.update({
         where: { id: request.hostelId },
         data: {
           isVerified: true,
@@ -118,7 +118,7 @@ export class HostelVerificationService {
     adminId: string,
     adminNotes?: string | null,
   ): Promise<HostelVerificationRequestReadDto> {
-    const request = await this.prisma.hostelVerificationRequest.findFirst({
+    const request = await this.db.hostelVerificationRequest.findFirst({
       where: {
         id: requestId,
         isDeleted: false,
@@ -133,8 +133,8 @@ export class HostelVerificationService {
       throw new AppBadRequestException('Only pending requests can be rejected.', 'verification_request_not_pending');
     }
 
-    const updatedRequest = await this.prisma.$transaction(async (prisma) => {
-      const rejected = await prisma.hostelVerificationRequest.update({
+    const updatedRequest = await this.db.$transaction(async (database) => {
+      const rejected = await database.hostelVerificationRequest.update({
         where: { id: requestId },
         data: {
           status: HostelVerificationStatus.Rejected,
@@ -145,7 +145,7 @@ export class HostelVerificationService {
         },
       });
 
-      await prisma.hostel.update({
+      await database.hostel.update({
         where: { id: request.hostelId },
         data: {
           isVerified: false,
@@ -164,7 +164,7 @@ export class HostelVerificationService {
 
   async getForHostel(hostelId: string, requesterId: string, isAdmin: boolean): Promise<HostelVerificationRequestReadDto[]> {
     if (!isAdmin) {
-      const hostel = await this.prisma.hostel.findFirst({
+      const hostel = await this.db.hostel.findFirst({
         where: {
           id: hostelId,
           ownerId: requesterId,
@@ -180,7 +180,7 @@ export class HostelVerificationService {
       }
     }
 
-    const requests = await this.prisma.hostelVerificationRequest.findMany({
+    const requests = await this.db.hostelVerificationRequest.findMany({
       where: {
         hostelId,
         isDeleted: false,

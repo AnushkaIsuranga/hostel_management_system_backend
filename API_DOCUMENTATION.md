@@ -2,25 +2,48 @@
 
 Last updated from source code: 2026-03-11
 
-This documentation is aligned with the current NestJS + Prisma implementation in:
+This documentation is aligned with the current NestJS + Mongoose implementation in:
 - `src/main.ts`
 - `src/**/*.controller.ts`
 - `src/**/*.service.ts`
 - `src/**/*.dto.ts`
-- `prisma/schema.prisma`
-- `prisma/seed.ts`
+- `src/database/database.schemas.ts`
+- `src/database/seed.ts`
 
 ## 1) Runtime and Base URL
 
+<<<<<<< Updated upstream
 - Runtime: NestJS 11, Prisma, PostgreSQL
 - Default development base URL: `http://localhost:3000`
+=======
+### Environment URLs
+
+| Environment | URL | Database | Storage |
+|-------------|-----|----------|---------|
+| Development | `http://localhost:3000` | Local MongoDB | Local (`wwwroot/`) |
+| **Staging** | **`https://staging.unihome.lk`** | MongoDB Atlas | AWS S3 |
+| **Production** | **`https://api.unihome.lk`** | MongoDB Atlas | AWS S3 |
+
+### Configuration
+
+- Runtime: NestJS 11, Mongoose, MongoDB
+>>>>>>> Stashed changes
 - API base path: `/api`
 - Static files are served from `wwwroot`
 - Uploaded hostel images are publicly reachable under `/uploads/...`
 - Swagger is not configured in the current source
 - HTTPS is not configured in the Nest bootstrap code
 
+<<<<<<< Updated upstream
 Port is configurable through `PORT`. The checked-in `.env.example` uses `3000`.
+=======
+### Deployment Notes
+
+- **Staging (Render)**: Automatic deploys from GitHub, MongoDB Atlas, SSL auto-renewed
+- **Production (AWS)**: Manual deployment via EC2, MongoDB Atlas, ACM SSL certificate
+- See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed setup and [DEPLOYMENT_QUICK_START.md](DEPLOYMENT_QUICK_START.md) for quick reference
+- Domain: `unihome.lk` (see [DNS_SETUP.md](DNS_SETUP.md) for DNS configuration)
+>>>>>>> Stashed changes
 
 ## 2) Authentication and Session
 
@@ -126,7 +149,7 @@ This matters for `POST /api/hostels/search`: the route is public, but if a valid
 - Enums are serialized as integers in responses
 - UUID values are strings
 - `Date` values serialize as ISO-8601 strings
-- Soft delete is implemented per service with `isDeleted` checks, not by a global Prisma filter
+- Soft delete is implemented per service with `isDeleted` checks, not by a global database filter
 - Some relations are hard-deleted instead of soft-deleted:
   - `HostelAmenity`
   - cleanup-time removal of old soft-deleted hostels and related records
@@ -231,9 +254,9 @@ Current workflow:
 
 ## 7) Seed Behavior
 
-The container startup runs `prisma migrate deploy`, then `prisma/seed.ts`, then starts the NestJS app.
+The container starts the NestJS app directly. There is no Prisma migration step in the MongoDB build.
 
-`prisma/seed.ts` upserts the configured admin user by `AdminCredentials__Email`, so startup is idempotent and the admin account is recreated or reactivated automatically when needed.
+`src/database/seed.ts` upserts the configured admin user by `AdminCredentials__Email`, and `AdminBootstrapService` also synchronizes that account on app startup when the admin env values are present.
 
 Required env vars:
 - `AdminCredentials__FullName`
@@ -735,7 +758,7 @@ Common statuses:
 
 ## 10) Notes
 
-- The current codebase does not use repository classes; data access is direct via `PrismaService`
+- The current codebase uses `DatabaseService`, a Mongoose-backed data adapter shared by the feature services
 - There is no dedicated `EmailService` in the NestJS implementation; subscription reminder and expiry notifications are currently log messages inside `HostelSubscriptionsService`
 - Most CRUD modules are currently public in the controller layer:
   - `users` except delete

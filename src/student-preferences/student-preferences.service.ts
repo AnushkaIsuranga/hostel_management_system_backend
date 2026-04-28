@@ -5,8 +5,8 @@ import {
   AppBadRequestException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { decimalToNumber, normalizeStringList, parseJsonStringArray } from '../common/utils/prisma.util';
-import { PrismaService } from '../prisma/prisma.service';
+import { decimalToNumber, normalizeStringList, parseJsonStringArray } from '../common/utils/database.util';
+import { DatabaseService } from '../database/database.service';
 import {
   StudentPreferenceReadDto,
   StudentPreferenceUpsertDto,
@@ -15,10 +15,10 @@ import {
 
 @Injectable()
 export class StudentPreferencesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getMine(userId: string): Promise<StudentPreferenceReadDto> {
-    const preference = await this.prisma.studentPreference.findFirst({
+    const preference = await this.db.studentPreference.findFirst({
       where: {
         userId,
         isDeleted: false,
@@ -39,14 +39,14 @@ export class StudentPreferencesService {
     const priorityOrder = this.normalizePriorityOrder(dto.priorityOrder);
     const weights = this.resolveWeights(dto.weights, priorityOrder);
 
-    const existing = await this.prisma.studentPreference.findFirst({
+    const existing = await this.db.studentPreference.findFirst({
       where: {
         userId,
       },
     });
 
     const preference = existing
-      ? await this.prisma.studentPreference.update({
+      ? await this.db.studentPreference.update({
           where: { id: existing.id },
           data: {
             universityId: dto.universityId,
@@ -63,7 +63,7 @@ export class StudentPreferencesService {
             deletedAt: null,
           },
         })
-      : await this.prisma.studentPreference.create({
+      : await this.db.studentPreference.create({
           data: {
             userId,
             universityId: dto.universityId,
@@ -111,7 +111,7 @@ export class StudentPreferencesService {
       throw new AppBadRequestException('RequiredCapacity must be greater than zero.');
     }
 
-    const universityExists = await this.prisma.university.findFirst({
+    const universityExists = await this.db.university.findFirst({
       where: {
         id: dto.universityId,
         isDeleted: false,
@@ -125,7 +125,7 @@ export class StudentPreferencesService {
 
     const selectedAmenities = normalizeStringList(dto.selectedAmenities);
     if (selectedAmenities.length > 0) {
-      const existingAmenities = await this.prisma.amenity.findMany({
+      const existingAmenities = await this.db.amenity.findMany({
         where: {
           isDeleted: false,
           name: { in: selectedAmenities },

@@ -2,13 +2,13 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import argon2 from 'argon2';
 
 import { UserRole } from '../common/enums/app.enums';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 
 @Injectable()
 export class AdminBootstrapService implements OnModuleInit {
   private readonly logger = new Logger(AdminBootstrapService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async onModuleInit() {
     const fullName = process.env.AdminCredentials__FullName?.trim();
@@ -20,13 +20,13 @@ export class AdminBootstrapService implements OnModuleInit {
       return;
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    const existingUser = await this.db.user.findUnique({
       where: { email },
     });
 
     if (!existingUser) {
       const passwordHash = await argon2.hash(password);
-      await this.prisma.user.create({
+      await this.db.user.create({
         data: {
           fullName,
           email,
@@ -72,7 +72,7 @@ export class AdminBootstrapService implements OnModuleInit {
 
     if (Object.keys(data).length > 0) {
       data.updatedAt = new Date();
-      await this.prisma.user.update({
+      await this.db.user.update({
         where: { id: existingUser.id },
         data,
       });
