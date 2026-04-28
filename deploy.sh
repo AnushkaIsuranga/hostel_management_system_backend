@@ -1,4 +1,34 @@
 #!/usr/bin/env bash
+# UniHome Backend Production Deployment Script
+# Blue-Green deployment to AWS EC2
+# 
+# Usage:
+#   ./deploy.sh                    # Uses defaults
+#   IMAGE=tag ./deploy.sh          # Custom image tag
+#   APP_DIR=/path ./deploy.sh      # Custom app directory
+#
+# Prerequisites:
+#   - Docker installed and running
+#   - .env file in $APP_DIR
+#   - Docker credentials configured
+#   - AWS credentials for S3 in .env
+#
+# Environment variables:
+#   IMAGE      - Docker image (default: andy880/hostel-api:latest)
+#   APP_DIR    - App directory (default: /home/ubuntu/apps/hostel-api)
+#   ENV_FILE   - Env file location (default: $APP_DIR/.env)
+#   APP_PREFIX - Container prefix (default: hostel-api)
+#   BLUE_PORT  - Blue container port (default: 3001)
+#   GREEN_PORT - Green container port (default: 3002)
+#
+# Blue-Green Strategy:
+#   - Maintains zero downtime deployments
+#   - Two containers (blue/green) alternate active roles
+#   - Load balancer switches between them
+#
+# Domain: https://api.unihome.lk (production)
+#         https://staging.unihome.lk (staging)
+
 set -euo pipefail
 
 IMAGE="${IMAGE:-andy880/hostel-api:latest}"
