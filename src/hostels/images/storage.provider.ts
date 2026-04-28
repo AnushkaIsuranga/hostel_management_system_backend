@@ -13,7 +13,7 @@ export const StorageProvider = {
   provide: STORAGE_SERVICE_TOKEN,
   useFactory: (configService: AppConfigService): StorageService => {
     const explicitDriver = process.env.STORAGE_DRIVER?.trim().toLowerCase();
-    const databaseUrl = process.env.DATABASE_URL ?? '';
+    const databaseUrl = process.env.MONGODB_URI ?? '';
     const usesLocalDatabase = /localhost|127\.0\.0\.1/i.test(databaseUrl);
 
     const storageDriver =

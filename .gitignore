@@ -3,6 +3,9 @@ dist
 wwwroot
 .env
 .env.local
+.env.staging
+.env.production
+.env.*.local
 coverage
 npm-debug.log*
 yarn-debug.log*

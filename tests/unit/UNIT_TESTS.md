@@ -40,7 +40,7 @@ Coverage is collected from the explicitly listed files in [vitest.config.ts](../
 
 - `src/common/enums/app.enums.ts`
 - `src/common/exceptions/app-exception.ts`
-- `src/common/utils/prisma.util.ts`
+- `src/common/utils/database.util.ts`
 - `src/auth/auth.service.ts`
 - `src/users/users.service.ts`
 - `src/amenities/amenities.service.ts`
@@ -72,8 +72,8 @@ This keeps tests fast, isolated, and free of framework overhead.
 
 ## Test File Inventory
 
-### `common/prisma.util.spec.ts` — 18 tests
-Tests the pure utility functions in `src/common/utils/prisma.util.ts`.
+### `common/database.util.spec.ts` — 18 tests
+Tests the pure utility functions in `src/common/utils/database.util.ts`.
 
 | Function | Cases |
 |---|---|

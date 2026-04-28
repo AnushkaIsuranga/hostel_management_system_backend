@@ -5,7 +5,7 @@ import {
   AppForbiddenException,
   AppNotFoundException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import { HostelImageReadDto } from './dto/hostel-images.dto';
 import { StorageService } from './storage.interface';
 import { STORAGE_SERVICE_TOKEN } from './storage.provider';
@@ -13,12 +13,12 @@ import { STORAGE_SERVICE_TOKEN } from './storage.provider';
 @Injectable()
 export class HostelImagesService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     @Inject(STORAGE_SERVICE_TOKEN) private readonly storageService: StorageService,
   ) {}
 
   async getImagesByHostelId(hostelId: string): Promise<HostelImageReadDto[]> {
-    const images = await this.prisma.hostelImage.findMany({
+    const images = await this.db.hostelImage.findMany({
       where: {
         hostelId,
         isDeleted: false,
@@ -36,7 +36,7 @@ export class HostelImagesService {
     userId: string,
     isAdmin: boolean,
   ): Promise<HostelImageReadDto> {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id: hostelId,
         isDeleted: false,
@@ -51,7 +51,7 @@ export class HostelImagesService {
       throw new AppForbiddenException('You are not allowed to upload images for this hostel.');
     }
 
-    const count = await this.prisma.hostelImage.count({
+    const count = await this.db.hostelImage.count({
       where: {
         hostelId,
         isDeleted: false,
@@ -65,7 +65,7 @@ export class HostelImagesService {
     const stored = await this.storageService.uploadImage(file, hostelId);
 
     try {
-      const image = await this.prisma.hostelImage.create({
+      const image = await this.db.hostelImage.create({
         data: {
           hostelId,
           fileName: stored.storedFileName,
@@ -86,7 +86,7 @@ export class HostelImagesService {
   }
 
   async deleteImage(imageId: string, userId: string, isAdmin: boolean) {
-    const image = await this.prisma.hostelImage.findFirst({
+    const image = await this.db.hostelImage.findFirst({
       where: {
         id: imageId,
         isDeleted: false,
@@ -105,7 +105,7 @@ export class HostelImagesService {
     }
 
     await this.storageService.deleteImage(image.imageUrl);
-    await this.prisma.hostelImage.update({
+    await this.db.hostelImage.update({
       where: { id: imageId },
       data: {
         isDeleted: true,
@@ -120,7 +120,7 @@ export class HostelImagesService {
       throw new AppBadRequestException('Display order must be greater than or equal to 0.');
     }
 
-    const image = await this.prisma.hostelImage.findFirst({
+    const image = await this.db.hostelImage.findFirst({
       where: {
         id: imageId,
         isDeleted: false,
@@ -138,7 +138,7 @@ export class HostelImagesService {
       throw new AppForbiddenException('You are not allowed to reorder this image.');
     }
 
-    await this.prisma.hostelImage.update({
+    await this.db.hostelImage.update({
       where: { id: imageId },
       data: {
         displayOrder: order,

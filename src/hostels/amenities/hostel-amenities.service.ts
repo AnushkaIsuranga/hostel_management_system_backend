@@ -5,7 +5,7 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import {
   HostelAmenityBulkCreateDto,
   HostelAmenityCreateDto,
@@ -14,14 +14,14 @@ import {
 
 @Injectable()
 export class HostelAmenitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<HostelAmenityReadDto[]> {
-    return this.prisma.hostelAmenity.findMany();
+    return this.db.hostelAmenity.findMany();
   }
 
   async getByKey(hostelId: string, amenityId: string): Promise<HostelAmenityReadDto | null> {
-    return this.prisma.hostelAmenity.findUnique({
+    return this.db.hostelAmenity.findUnique({
       where: {
         hostelId_amenityId: {
           hostelId,
@@ -32,7 +32,7 @@ export class HostelAmenitiesService {
   }
 
   async create(dto: HostelAmenityCreateDto): Promise<HostelAmenityReadDto> {
-    const existing = await this.prisma.hostelAmenity.findUnique({
+    const existing = await this.db.hostelAmenity.findUnique({
       where: {
         hostelId_amenityId: {
           hostelId: dto.hostelId,
@@ -45,7 +45,7 @@ export class HostelAmenitiesService {
       throw new AppConflictException('Hostel amenity already exists.', 'hostel_amenity_conflict');
     }
 
-    return this.prisma.hostelAmenity.create({
+    return this.db.hostelAmenity.create({
       data: {
         hostelId: dto.hostelId,
         amenityId: dto.amenityId,
@@ -67,7 +67,7 @@ export class HostelAmenitiesService {
       throw new AppBadRequestException('At least one amenity name is required.');
     }
 
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id: dto.hostelId,
         isDeleted: false,
@@ -78,7 +78,7 @@ export class HostelAmenitiesService {
       throw new AppNotFoundException('Hostel not found.');
     }
 
-    const existingAmenities = await this.prisma.amenity.findMany({
+    const existingAmenities = await this.db.amenity.findMany({
       where: { isDeleted: false },
     });
     const amenityMap = new Map(existingAmenities.map((amenity) => [amenity.name.trim().toLowerCase(), amenity]));
@@ -89,7 +89,7 @@ export class HostelAmenitiesService {
         continue;
       }
 
-      const created = await this.prisma.amenity.create({
+      const created = await this.db.amenity.create({
         data: {
           name,
           createdAt: new Date(),
@@ -106,7 +106,7 @@ export class HostelAmenitiesService {
         continue;
       }
 
-      const existingLink = await this.prisma.hostelAmenity.findUnique({
+      const existingLink = await this.db.hostelAmenity.findUnique({
         where: {
           hostelId_amenityId: {
             hostelId: dto.hostelId,
@@ -120,7 +120,7 @@ export class HostelAmenitiesService {
         continue;
       }
 
-      const createdLink = await this.prisma.hostelAmenity.create({
+      const createdLink = await this.db.hostelAmenity.create({
         data: {
           hostelId: dto.hostelId,
           amenityId: amenity.id,
@@ -133,7 +133,7 @@ export class HostelAmenitiesService {
   }
 
   async delete(hostelId: string, amenityId: string) {
-    const existing = await this.prisma.hostelAmenity.findUnique({
+    const existing = await this.db.hostelAmenity.findUnique({
       where: {
         hostelId_amenityId: {
           hostelId,
@@ -146,7 +146,7 @@ export class HostelAmenitiesService {
       throw new AppNotFoundException('Hostel amenity link not found.');
     }
 
-    await this.prisma.hostelAmenity.delete({
+    await this.db.hostelAmenity.delete({
       where: {
         hostelId_amenityId: {
           hostelId,

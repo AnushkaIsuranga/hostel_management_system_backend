@@ -21,6 +21,9 @@ const makePrisma = () => ({
   university: {
     findFirst: vi.fn(),
   },
+  user: {
+    findFirst: vi.fn(),
+  },
   studentPreference: {
     findFirst: vi.fn(),
   },
@@ -211,7 +214,9 @@ describe('HostelsService', () => {
   });
 
   it('create extracts coordinates from Google Maps URL query params', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 'owner-1' });
     prisma.hostel.create.mockResolvedValue(makeHostelEntity({ latitude: 6.9, longitude: 79.8 }));
+    prisma.hostel.findFirst.mockResolvedValue(makeHostelEntity({ latitude: 6.9, longitude: 79.8 }));
 
     const result = await service.create('owner-1', {
       name: 'H',
@@ -239,7 +244,10 @@ describe('HostelsService', () => {
   });
 
   it('create persists hostel with canonical map URL from coordinates', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 'owner-1' });
     prisma.hostel.create.mockResolvedValue(makeHostelEntity());
+    prisma.hostelImage.createMany.mockResolvedValue({ count: 1 });
+    prisma.hostel.findFirst.mockResolvedValue(makeHostelEntity());
 
     const result = await service.create('owner-1', {
       name: 'H',

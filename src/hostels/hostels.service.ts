@@ -2,7 +2,6 @@ import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 
 import {
   HostelVerificationStatus,
@@ -12,8 +11,8 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { decimalToNumber, parseJsonStringArray } from '../common/utils/prisma.util';
-import { PrismaService } from '../prisma/prisma.service';
+import { decimalToNumber, parseJsonStringArray } from '../common/utils/database.util';
+import { DatabaseService } from '../database/database.service';
 import {
   HostelCreateDto,
   HostelReadDto,
@@ -31,10 +30,10 @@ const COORDINATES_QUERY_REGEX = /[?&](?:q|query|ll)=(-?\d+(?:\.\d+)?),\s*(-?\d+(
 
 @Injectable()
 export class HostelsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<HostelReadDto[]> {
-    const hostels = await this.prisma.hostel.findMany({
+    const hostels = await this.db.hostel.findMany({
       where: { isDeleted: false },
       include: this.hostelInclude(),
       orderBy: { createdAt: 'desc' },
@@ -47,7 +46,7 @@ export class HostelsService {
   }
 
   async getById(id: string): Promise<HostelReadDto> {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -71,7 +70,7 @@ export class HostelsService {
       throw new AppBadRequestException('UniversityId is required.');
     }
 
-    const university = await this.prisma.university.findFirst({
+    const university = await this.db.university.findFirst({
       where: {
         id: effectiveRequest.universityId,
         isDeleted: false,
@@ -82,7 +81,7 @@ export class HostelsService {
       throw new AppNotFoundException('University not found.');
     }
 
-    const where: Prisma.HostelWhereInput = {
+    const where: Record<string, unknown> = {
       isDeleted: false,
       ...(effectiveRequest.minBudget !== undefined && effectiveRequest.minBudget !== null
         ? { maxPrice: { gte: effectiveRequest.minBudget } }
@@ -117,7 +116,7 @@ export class HostelsService {
         : {}),
     };
 
-    const hostels = await this.prisma.hostel.findMany({
+    const hostels = await this.db.hostel.findMany({
       where,
       include: this.hostelInclude({
         includeRooms: true,
@@ -193,9 +192,20 @@ export class HostelsService {
   async create(ownerId: string, dto: HostelCreateDto): Promise<HostelReadDto> {
     const coordinates = await this.resolveCoordinates(dto.latitude, dto.longitude, dto.googleMapsUrl);
     const images = this.normalizeImages(dto.images);
+    const owner = await this.db.user.findFirst({
+      where: {
+        id: ownerId,
+        isDeleted: false,
+      },
+      select: { id: true },
+    });
+
+    if (!owner) {
+      throw new AppNotFoundException('The hostel owner account was not found.', 'hostel_owner_not_found');
+    }
 
     try {
-      const hostel = await this.prisma.hostel.create({
+      const hostel = await this.db.hostel.create({
         data: {
           name: dto.name,
           ownerId,
@@ -213,41 +223,32 @@ export class HostelsService {
           verificationStatus: HostelVerificationStatus.None,
           createdAt: new Date(),
           isDeleted: false,
-          images: images.length
-            ? {
-                create: images.map((imageUrl, index) => ({
-                  imageUrl,
-                  fileName: this.getImageFileName(imageUrl),
-                  contentType: 'application/octet-stream',
-                  fileSize: BigInt(0),
-                  displayOrder: index,
-                  createdAt: new Date(),
-                  isDeleted: false,
-                })),
-              }
-            : undefined,
         },
-        include: this.hostelInclude(),
       });
 
-      return this.toReadDto(hostel);
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2002') {
-          throw new AppConflictException('A hostel with the same unique fields already exists.', 'hostel_conflict');
-        }
-
-        if (error.code === 'P2003') {
-          throw new AppNotFoundException('The hostel owner account was not found.', 'hostel_owner_not_found');
-        }
+      if (images.length > 0) {
+        await this.db.hostelImage.createMany({
+          data: images.map((imageUrl, index) => ({
+            hostelId: hostel.id,
+            imageUrl,
+            fileName: this.getImageFileName(imageUrl),
+            contentType: 'application/octet-stream',
+            fileSize: 0,
+            displayOrder: index,
+            createdAt: new Date(),
+            isDeleted: false,
+          })),
+        });
       }
 
-      throw error;
+      return this.getById(hostel.id);
+    } catch {
+      throw new AppConflictException('A hostel with the same unique fields already exists.', 'hostel_conflict');
     }
   }
 
   async update(id: string, dto: HostelUpdateDto): Promise<HostelReadDto> {
-    const existing = await this.prisma.hostel.findFirst({
+    const existing = await this.db.hostel.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -266,8 +267,8 @@ export class HostelsService {
     const coordinates = await this.resolveCoordinates(dto.latitude, dto.longitude, dto.googleMapsUrl);
     const images = this.normalizeImages(dto.images);
 
-    await this.prisma.$transaction(async (prisma) => {
-      await prisma.hostel.update({
+    await this.db.$transaction(async (database) => {
+      await database.hostel.update({
         where: { id },
         data: {
           name: dto.name,
@@ -287,7 +288,7 @@ export class HostelsService {
       });
 
       if (images.length > 0) {
-        await prisma.hostelImage.updateMany({
+        await database.hostelImage.updateMany({
           where: {
             hostelId: id,
             isDeleted: false,
@@ -299,7 +300,7 @@ export class HostelsService {
           },
         });
 
-        await prisma.hostelImage.createMany({
+        await database.hostelImage.createMany({
           data: images.map((imageUrl, index) => ({
             hostelId: id,
             imageUrl,
@@ -318,7 +319,7 @@ export class HostelsService {
   }
 
   async delete(id: string) {
-    const existing = await this.prisma.hostel.findFirst({
+    const existing = await this.db.hostel.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -330,8 +331,8 @@ export class HostelsService {
     }
 
     const deletedAt = new Date();
-    await this.prisma.$transaction([
-      this.prisma.hostelImage.updateMany({
+    await this.db.$transaction([
+      this.db.hostelImage.updateMany({
         where: {
           hostelId: id,
           isDeleted: false,
@@ -342,7 +343,7 @@ export class HostelsService {
           updatedAt: deletedAt,
         },
       }),
-      this.prisma.hostel.update({
+      this.db.hostel.update({
         where: { id },
         data: {
           isDeleted: true,
@@ -354,7 +355,7 @@ export class HostelsService {
   }
 
   async restore(id: string): Promise<HostelReadDto> {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: { id },
       include: {
         owner: true,
@@ -377,8 +378,8 @@ export class HostelsService {
       throw new AppBadRequestException('Hostel cannot be restored after the retention window.');
     }
 
-    await this.prisma.$transaction([
-      this.prisma.hostel.update({
+    await this.db.$transaction([
+      this.db.hostel.update({
         where: { id },
         data: {
           isDeleted: false,
@@ -386,7 +387,7 @@ export class HostelsService {
           updatedAt: new Date(),
         },
       }),
-      this.prisma.hostelImage.updateMany({
+      this.db.hostelImage.updateMany({
         where: {
           hostelId: id,
           isDeleted: true,
@@ -471,7 +472,7 @@ export class HostelsService {
       };
     }
 
-    const preference = await this.prisma.studentPreference.findFirst({
+    const preference = await this.db.studentPreference.findFirst({
       where: {
         userId: currentUserId,
         isDeleted: false,
@@ -491,7 +492,7 @@ export class HostelsService {
 
     const selectedAmenityNames = parseJsonStringArray(preference.selectedAmenitiesJson);
     const preferredAmenities = selectedAmenityNames.length
-      ? await this.prisma.amenity.findMany({
+      ? await this.db.amenity.findMany({
           where: {
             isDeleted: false,
             name: { in: selectedAmenityNames },

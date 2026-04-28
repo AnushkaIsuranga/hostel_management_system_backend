@@ -5,7 +5,7 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import {
   HostelListingCreateDto,
   HostelListingReadDto,
@@ -14,10 +14,10 @@ import {
 
 @Injectable()
 export class HostelListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<HostelListingReadDto[]> {
-    const listings = await this.prisma.hostelListing.findMany({
+    const listings = await this.db.hostelListing.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },
     });
@@ -26,7 +26,7 @@ export class HostelListingsService {
   }
 
   async getById(id: string): Promise<HostelListingReadDto> {
-    const listing = await this.prisma.hostelListing.findFirst({
+    const listing = await this.db.hostelListing.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -42,7 +42,7 @@ export class HostelListingsService {
 
   async create(dto: HostelListingCreateDto): Promise<HostelListingReadDto> {
     try {
-      const listing = await this.prisma.hostelListing.create({
+      const listing = await this.db.hostelListing.create({
         data: {
           hostelId: dto.hostelId,
           ownerUserId: dto.ownerUserId,
@@ -59,7 +59,7 @@ export class HostelListingsService {
   }
 
   async update(id: string, dto: HostelListingUpdateDto): Promise<HostelListingReadDto> {
-    const listing = await this.prisma.hostelListing.findFirst({
+    const listing = await this.db.hostelListing.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -70,7 +70,7 @@ export class HostelListingsService {
       throw new AppNotFoundException('Listing not found.');
     }
 
-    const updated = await this.prisma.hostelListing.update({
+    const updated = await this.db.hostelListing.update({
       where: { id },
       data: {
         status: dto.status,
@@ -82,7 +82,7 @@ export class HostelListingsService {
   }
 
   async delete(id: string) {
-    const listing = await this.prisma.hostelListing.findFirst({
+    const listing = await this.db.hostelListing.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -93,7 +93,7 @@ export class HostelListingsService {
       throw new AppNotFoundException('Listing not found.');
     }
 
-    await this.prisma.hostelListing.update({
+    await this.db.hostelListing.update({
       where: { id },
       data: {
         isDeleted: true,

@@ -7,10 +7,10 @@ import { ActivityTrackingMiddleware } from './auth/middleware/activity-tracking.
 import { AmenitiesModule } from './amenities/amenities.module';
 import { ProblemDetailsFilter } from './common/exceptions/problem-details.filter';
 import { AppConfigModule } from './config/app-config.module';
+import { DatabaseModule } from './database/database.module';
 import { HealthController } from './health.controller';
 import { HostelsModule } from './hostels/hostels.module';
 import { InteractionEventsModule } from './interaction-events/interaction-events.module';
-import { PrismaModule } from './prisma/prisma.module';
 import { RoomsModule } from './rooms/rooms.module';
 import { StudentPreferencesModule } from './student-preferences/student-preferences.module';
 import { UniversitiesModule } from './universities/universities.module';
@@ -22,7 +22,7 @@ import { UsersModule } from './users/users.module';
       isGlobal: true,
     }),
     AppConfigModule,
-    PrismaModule,
+    DatabaseModule,
     AuthModule,
     UsersModule,
     UniversitiesModule,
