@@ -194,12 +194,14 @@ Each hostel can store up to `8` active images.
 
 Storage behavior:
 - Database stores metadata plus `imageUrl`
-- Current storage implementation is local filesystem under `wwwroot/uploads/hostels/...`
+- Storage driver is selected by `STORAGE_DRIVER`: `local`, `s3`, or `cloudinary`
+- Staging currently uses Cloudinary (`STORAGE_DRIVER=cloudinary`)
 - Uploads are converted to WebP variants:
   - `thumbnail` max width `300`
   - `card` max width `600`
   - `full` max width `1200`
-- Stored `imageUrl` points to the `full` variant
+- Local storage keeps all variants; S3/Cloudinary store the optimized full variant
+- Stored `imageUrl` points to local path, S3 URL, or Cloudinary secure URL
 - `ImageStorage__CdnBaseUrl` can prepend a CDN/public host
 
 ### 5.4 Student preferences
