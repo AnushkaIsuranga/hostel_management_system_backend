@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decimalToNumber, parseJsonStringArray, normalizeStringList } from '../../../src/common/utils/prisma.util';
+import { decimalToNumber, parseJsonStringArray, normalizeStringList } from '../../../src/common/utils/database.util';
 
 describe('decimalToNumber', () => {
   it('returns null for null input', () => {

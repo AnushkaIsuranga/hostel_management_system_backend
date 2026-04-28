@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { AppConfigService } from '../../config/app-config.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import { HostelImagesService } from './hostel-images.service';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class CleanupDeletedDataService implements OnModuleInit, OnModuleDestroy 
   private interval: NodeJS.Timeout | null = null;
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly configService: AppConfigService,
     private readonly hostelImagesService: HostelImagesService,
   ) {}
@@ -34,7 +34,7 @@ export class CleanupDeletedDataService implements OnModuleInit, OnModuleDestroy 
       const retentionMs = Math.max(1, this.configService.cleanupRetentionDays) * 24 * 60 * 60 * 1000;
       const cutoff = new Date(Date.now() - retentionMs);
 
-      const hostels = await this.prisma.hostel.findMany({
+      const hostels = await this.db.hostel.findMany({
         where: {
           isDeleted: true,
           deletedAt: {
@@ -57,33 +57,33 @@ export class CleanupDeletedDataService implements OnModuleInit, OnModuleDestroy 
           }
         }
 
-        await this.prisma.$transaction([
-          this.prisma.interactionEvent.updateMany({
+        await this.db.$transaction([
+          this.db.interactionEvent.updateMany({
             where: { hostelId: hostel.id },
             data: { hostelId: null },
           }),
-          this.prisma.hostelAmenity.deleteMany({
+          this.db.hostelAmenity.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostelListing.deleteMany({
+          this.db.hostelListing.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.room.deleteMany({
+          this.db.room.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostelReview.deleteMany({
+          this.db.hostelReview.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostelVerificationRequest.deleteMany({
+          this.db.hostelVerificationRequest.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostelSubscription.deleteMany({
+          this.db.hostelSubscription.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostelImage.deleteMany({
+          this.db.hostelImage.deleteMany({
             where: { hostelId: hostel.id },
           }),
-          this.prisma.hostel.delete({
+          this.db.hostel.delete({
             where: { id: hostel.id },
           }),
         ]);

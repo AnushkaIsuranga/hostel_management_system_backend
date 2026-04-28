@@ -4,16 +4,16 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { decimalToNumber } from '../common/utils/prisma.util';
-import { PrismaService } from '../prisma/prisma.service';
+import { decimalToNumber } from '../common/utils/database.util';
+import { DatabaseService } from '../database/database.service';
 import { RoomCreateDto, RoomReadDto, RoomUpdateDto } from './dto/rooms.dto';
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<RoomReadDto[]> {
-    const rooms = await this.prisma.room.findMany({
+    const rooms = await this.db.room.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },
     });
@@ -22,7 +22,7 @@ export class RoomsService {
   }
 
   async getById(id: string): Promise<RoomReadDto> {
-    const room = await this.prisma.room.findFirst({
+    const room = await this.db.room.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -38,7 +38,7 @@ export class RoomsService {
 
   async create(dto: RoomCreateDto): Promise<RoomReadDto> {
     try {
-      const room = await this.prisma.room.create({
+      const room = await this.db.room.create({
         data: {
           hostelId: dto.hostelId,
           roomType: dto.roomType,
@@ -57,7 +57,7 @@ export class RoomsService {
   }
 
   async update(id: string, dto: RoomUpdateDto): Promise<RoomReadDto> {
-    const room = await this.prisma.room.findFirst({
+    const room = await this.db.room.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -68,7 +68,7 @@ export class RoomsService {
       throw new AppNotFoundException('Room not found.');
     }
 
-    const updated = await this.prisma.room.update({
+    const updated = await this.db.room.update({
       where: { id },
       data: {
         roomType: dto.roomType,
@@ -83,7 +83,7 @@ export class RoomsService {
   }
 
   async delete(id: string) {
-    const room = await this.prisma.room.findFirst({
+    const room = await this.db.room.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -94,7 +94,7 @@ export class RoomsService {
       throw new AppNotFoundException('Room not found.');
     }
 
-    await this.prisma.room.update({
+    await this.db.room.update({
       where: { id },
       data: {
         isDeleted: true,

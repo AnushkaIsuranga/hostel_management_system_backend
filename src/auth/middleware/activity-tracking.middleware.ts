@@ -4,13 +4,13 @@ import { Request, Response } from 'express';
 
 import { roleNameToValue } from '../../common/enums/app.enums';
 import { AppConfigService } from '../../config/app-config.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import { JwtPayload } from '../interfaces/jwt-payload.interface';
 
 @Injectable()
 export class ActivityTrackingMiddleware implements NestMiddleware {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly jwtService: JwtService,
     private readonly configService: AppConfigService,
   ) {}
@@ -38,7 +38,7 @@ export class ActivityTrackingMiddleware implements NestMiddleware {
         roleName: payload.role,
       };
 
-      await this.prisma.user.updateMany({
+      await this.db.user.updateMany({
         where: {
           id: payload.sub,
           isDeleted: false,

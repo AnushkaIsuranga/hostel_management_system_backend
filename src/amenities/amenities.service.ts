@@ -5,15 +5,15 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { AmenityCreateDto, AmenityReadDto, AmenityUpdateDto } from './dto/amenities.dto';
 
 @Injectable()
 export class AmenitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<AmenityReadDto[]> {
-    const amenities = await this.prisma.amenity.findMany({
+    const amenities = await this.db.amenity.findMany({
       where: { isDeleted: false },
       orderBy: { name: 'asc' },
     });
@@ -27,7 +27,7 @@ export class AmenitiesService {
   }
 
   async getById(id: string): Promise<AmenityReadDto> {
-    const amenity = await this.prisma.amenity.findFirst({
+    const amenity = await this.db.amenity.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -52,7 +52,7 @@ export class AmenitiesService {
       throw new AppBadRequestException('Amenity name is required.');
     }
 
-    const existingAmenities = await this.prisma.amenity.findMany({
+    const existingAmenities = await this.db.amenity.findMany({
       where: { isDeleted: false },
       select: { name: true },
     });
@@ -66,7 +66,7 @@ export class AmenitiesService {
         continue;
       }
 
-      const amenity = await this.prisma.amenity.create({
+      const amenity = await this.db.amenity.create({
         data: {
           name,
           createdAt: new Date(),
@@ -94,7 +94,7 @@ export class AmenitiesService {
   }
 
   async update(id: string, dto: AmenityUpdateDto): Promise<AmenityReadDto> {
-    const amenity = await this.prisma.amenity.findFirst({
+    const amenity = await this.db.amenity.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -111,7 +111,7 @@ export class AmenitiesService {
     }
 
     const primaryName = names[0];
-    const duplicate = await this.prisma.amenity.findFirst({
+    const duplicate = await this.db.amenity.findFirst({
       where: {
         id: { not: id },
         isDeleted: false,
@@ -126,7 +126,7 @@ export class AmenitiesService {
       throw new AppConflictException('An amenity with the same name already exists.', 'amenity_name_conflict');
     }
 
-    const updated = await this.prisma.amenity.update({
+    const updated = await this.db.amenity.update({
       where: { id },
       data: {
         name: primaryName,
@@ -134,7 +134,7 @@ export class AmenitiesService {
       },
     });
 
-    const existingAmenities = await this.prisma.amenity.findMany({
+    const existingAmenities = await this.db.amenity.findMany({
       where: {
         id: { not: id },
         isDeleted: false,
@@ -151,7 +151,7 @@ export class AmenitiesService {
         continue;
       }
 
-      await this.prisma.amenity.create({
+      await this.db.amenity.create({
         data: {
           name: extraName,
           createdAt: new Date(),
@@ -171,7 +171,7 @@ export class AmenitiesService {
   }
 
   async delete(id: string) {
-    const amenity = await this.prisma.amenity.findFirst({
+    const amenity = await this.db.amenity.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -182,7 +182,7 @@ export class AmenitiesService {
       throw new AppNotFoundException('Amenity not found.');
     }
 
-    await this.prisma.amenity.update({
+    await this.db.amenity.update({
       where: { id },
       data: {
         isDeleted: true,

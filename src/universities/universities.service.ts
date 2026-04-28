@@ -5,15 +5,15 @@ import {
   AppConflictException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { UniversityCreateDto, UniversityReadDto, UniversityUpdateDto } from './dto/universities.dto';
 
 @Injectable()
 export class UniversitiesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<UniversityReadDto[]> {
-    const universities = await this.prisma.university.findMany({
+    const universities = await this.db.university.findMany({
       where: { isDeleted: false },
       orderBy: { name: 'asc' },
     });
@@ -29,7 +29,7 @@ export class UniversitiesService {
   }
 
   async getById(id: string): Promise<UniversityReadDto> {
-    const university = await this.prisma.university.findFirst({
+    const university = await this.db.university.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -54,7 +54,7 @@ export class UniversitiesService {
     this.validateCoordinates(dto.latitude, dto.longitude);
 
     try {
-      const university = await this.prisma.university.create({
+      const university = await this.db.university.create({
         data: {
           name: dto.name,
           latitude: dto.latitude,
@@ -80,7 +80,7 @@ export class UniversitiesService {
   async update(id: string, dto: UniversityUpdateDto): Promise<UniversityReadDto> {
     this.validateCoordinates(dto.latitude, dto.longitude);
 
-    const existing = await this.prisma.university.findFirst({
+    const existing = await this.db.university.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -92,7 +92,7 @@ export class UniversitiesService {
     }
 
     try {
-      const university = await this.prisma.university.update({
+      const university = await this.db.university.update({
         where: { id },
         data: {
           name: dto.name,
@@ -116,7 +116,7 @@ export class UniversitiesService {
   }
 
   async delete(id: string) {
-    const existing = await this.prisma.university.findFirst({
+    const existing = await this.db.university.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -127,7 +127,7 @@ export class UniversitiesService {
       throw new AppNotFoundException('University not found.');
     }
 
-    await this.prisma.university.update({
+    await this.db.university.update({
       where: { id },
       data: {
         isDeleted: true,

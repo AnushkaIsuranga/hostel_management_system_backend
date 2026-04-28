@@ -17,10 +17,8 @@ services:
         value: staging
       - key: PORT
         value: 3000
-      - key: DATABASE_URL
-        fromDatabase:
-          name: unihome-postgres-staging
-          property: connectionString
+      - key: MONGODB_URI
+        sync: false  # Set via dashboard with the MongoDB Atlas staging connection string
       
       # JWT Configuration
       - key: JwtSettings__Secret
@@ -93,11 +91,5 @@ services:
       - staging.unihome.lk
     
     # Build Configuration
-    buildCommand: npm run build && npm run prisma:generate
-    startCommand: npm run prisma:deploy && npm start
-
-databases:
-  - name: unihome-postgres-staging
-    plan: standard
-    region: singapore  # or your preferred region
-    postgresMajorVersion: 16
+    buildCommand: npm run build
+    startCommand: npm start
