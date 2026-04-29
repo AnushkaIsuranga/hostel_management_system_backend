@@ -7,7 +7,7 @@ import {
   AppNotFoundException,
   AppUnauthorizedException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import {
   HostelRatingSummaryDto,
   HostelReviewCreateDto,
@@ -17,12 +17,12 @@ import {
 
 @Injectable()
 export class HostelReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getForHostel(hostelId: string): Promise<HostelReviewReadDto[]> {
     await this.ensureHostelExists(hostelId);
 
-    const reviews = await this.prisma.hostelReview.findMany({
+    const reviews = await this.db.hostelReview.findMany({
       where: {
         hostelId,
         isDeleted: false,
@@ -39,7 +39,7 @@ export class HostelReviewsService {
   async getSummary(hostelId: string): Promise<HostelRatingSummaryDto> {
     await this.ensureHostelExists(hostelId);
 
-    const aggregate = await this.prisma.hostelReview.aggregate({
+    const aggregate = await this.db.hostelReview.aggregate({
       where: {
         hostelId,
         isDeleted: false,
@@ -59,7 +59,7 @@ export class HostelReviewsService {
     this.validate(dto.rating, dto.comment);
     await this.ensureHostelExists(hostelId);
 
-    const user = await this.prisma.user.findFirst({
+    const user = await this.db.user.findFirst({
       where: {
         id: userId,
         isDeleted: false,
@@ -71,7 +71,7 @@ export class HostelReviewsService {
     }
 
     try {
-      const review = await this.prisma.hostelReview.create({
+      const review = await this.db.hostelReview.create({
         data: {
           hostelId,
           userId,
@@ -100,7 +100,7 @@ export class HostelReviewsService {
   ): Promise<HostelReviewReadDto> {
     this.validate(dto.rating, dto.comment);
 
-    const review = await this.prisma.hostelReview.findFirst({
+    const review = await this.db.hostelReview.findFirst({
       where: {
         id: reviewId,
         hostelId,
@@ -119,7 +119,7 @@ export class HostelReviewsService {
       throw new AppForbiddenException('You cannot modify this review.');
     }
 
-    const updated = await this.prisma.hostelReview.update({
+    const updated = await this.db.hostelReview.update({
       where: { id: reviewId },
       data: {
         rating: dto.rating,
@@ -135,7 +135,7 @@ export class HostelReviewsService {
   }
 
   async delete(hostelId: string, reviewId: string, userId: string, isAdmin: boolean) {
-    const review = await this.prisma.hostelReview.findFirst({
+    const review = await this.db.hostelReview.findFirst({
       where: {
         id: reviewId,
         hostelId,
@@ -151,7 +151,7 @@ export class HostelReviewsService {
       throw new AppForbiddenException('You cannot delete this review.');
     }
 
-    await this.prisma.hostelReview.update({
+    await this.db.hostelReview.update({
       where: { id: reviewId },
       data: {
         isDeleted: true,
@@ -162,7 +162,7 @@ export class HostelReviewsService {
   }
 
   private async ensureHostelExists(hostelId: string) {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id: hostelId,
         isDeleted: false,

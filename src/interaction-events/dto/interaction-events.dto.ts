@@ -5,7 +5,7 @@ export interface InteractionEventReadDto {
   userId: string | null;
   hostelId: string | null;
   eventType: InteractionType;
-  eventData: string | null;
+  eventData: unknown | null;
   sessionId: string;
   createdAt: Date;
   updatedAt: Date | null;
@@ -15,7 +15,7 @@ export class InteractionEventCreateDto {
   userId?: string | null;
   hostelId?: string | null;
   eventType: InteractionType;
-  eventData?: string | null;
+  eventData?: unknown | null;
   sessionId: string;
 }
 
@@ -23,6 +23,6 @@ export class InteractionEventUpdateDto {
   userId?: string | null;
   hostelId?: string | null;
   eventType: InteractionType;
-  eventData?: string | null;
+  eventData?: unknown | null;
   sessionId: string;
 }

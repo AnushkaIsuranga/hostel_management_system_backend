@@ -1,6 +1,4 @@
-import { Prisma } from '@prisma/client';
-
-export function decimalToNumber(value: Prisma.Decimal | number | string | null | undefined): number | null {
+export function decimalToNumber(value: number | string | null | undefined): number | null {
   if (value === null || value === undefined) {
     return null;
   }

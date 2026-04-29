@@ -2,16 +2,17 @@ import { createHash, randomBytes } from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
 import argon2 from 'argon2';
 
 import {
+  AppBadRequestException,
   AppConflictException,
   AppUnauthorizedException,
 } from '../common/exceptions/app-exception';
-import { UserRole, userRoleToName } from '../common/enums/app.enums';
+import { tryParseUserRole, UserRole, userRoleToName } from '../common/enums/app.enums';
 import { AppConfigService } from '../config/app-config.service';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
+import { UserRecord } from '../database/database.schemas';
 import { UserRegisterDto } from '../users/dto/users.dto';
 import { AuthTokenIssueResult, LoginRequestDto } from './dto/auth.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
@@ -19,13 +20,13 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly db: DatabaseService,
     private readonly jwtService: JwtService,
     private readonly configService: AppConfigService,
   ) {}
 
   async login(dto: LoginRequestDto): Promise<AuthTokenIssueResult> {
-    const user = await this.prisma.user.findFirst({
+    const user = await this.db.user.findFirst({
       where: {
         email: dto.email,
         isDeleted: false,
@@ -41,7 +42,7 @@ export class AuthService {
       throw new AppUnauthorizedException('Invalid email or password.');
     }
 
-    await this.prisma.user.update({
+    await this.db.user.update({
       where: { id: user.id },
       data: { lastActivityAt: new Date() },
     });
@@ -56,7 +57,7 @@ export class AuthService {
     }
 
     const tokenHash = this.hashRefreshToken(refreshToken);
-    const tokenEntity = await this.prisma.refreshToken.findFirst({
+    const tokenEntity = await this.db.refreshToken.findFirst({
       where: { tokenHash },
       include: { user: true },
     });
@@ -69,7 +70,7 @@ export class AuthService {
       const idleTimeoutMs = this.configService.adminIdleTimeoutMinutes * 60_000;
       const idleDuration = Date.now() - tokenEntity.user.lastActivityAt.getTime();
       if (idleDuration > idleTimeoutMs) {
-        await this.prisma.refreshToken.update({
+        await this.db.refreshToken.update({
           where: { id: tokenEntity.id },
           data: { revoked: true },
         });
@@ -77,7 +78,7 @@ export class AuthService {
       }
     }
 
-    await this.prisma.refreshToken.update({
+    await this.db.refreshToken.update({
       where: { id: tokenEntity.id },
       data: { revoked: true },
     });
@@ -91,7 +92,7 @@ export class AuthService {
     }
 
     const tokenHash = this.hashRefreshToken(refreshToken);
-    await this.prisma.refreshToken.updateMany({
+    await this.db.refreshToken.updateMany({
       where: {
         tokenHash,
         revoked: false,
@@ -103,7 +104,7 @@ export class AuthService {
   }
 
   async register(dto: UserRegisterDto): Promise<AuthTokenIssueResult> {
-    const existingUser = await this.prisma.user.findFirst({
+    const existingUser = await this.db.user.findFirst({
       where: { email: dto.email },
     });
 
@@ -111,15 +112,28 @@ export class AuthService {
       throw new AppConflictException('A user with this email already exists.', 'email_conflict');
     }
 
-    let user: User;
+    let role = UserRole.Student;
+    if (dto.role !== undefined && dto.role !== null) {
+      const parsedRole = tryParseUserRole(dto.role);
+      if (parsedRole === null || parsedRole === UserRole.Admin) {
+        throw new AppBadRequestException(
+          'Invalid role. Only Student and Owner can self-register.',
+          'invalid_role',
+        );
+      }
+
+      role = parsedRole;
+    }
+
+    let user: UserRecord;
     try {
-      user = await this.prisma.user.create({
+      user = await this.db.user.create({
         data: {
           fullName: dto.fullName,
           email: dto.email,
           phoneNumber: dto.phoneNumber,
           passwordHash: await argon2.hash(dto.password),
-          role: UserRole.Student,
+          role,
           lastActivityAt: new Date(),
           createdAt: new Date(),
           isDeleted: false,
@@ -132,13 +146,13 @@ export class AuthService {
     return this.issueTokens(user, false);
   }
 
-  private async issueTokens(user: User, rememberMe: boolean): Promise<AuthTokenIssueResult> {
+  private async issueTokens(user: UserRecord, rememberMe: boolean): Promise<AuthTokenIssueResult> {
     const accessToken = await this.generateAccessToken(user);
     const refreshToken = this.generateRefreshToken();
     const refreshTokenHash = this.hashRefreshToken(refreshToken);
     const refreshTokenExpiresAt = new Date(Date.now() + this.getRefreshLifetimeMs(user.role, rememberMe));
 
-    await this.prisma.refreshToken.create({
+    await this.db.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: refreshTokenHash,
@@ -154,6 +168,7 @@ export class AuthService {
         accessToken: accessToken.token,
         accessTokenExpiresAt: accessToken.expiresAt,
         userId: user.id,
+        fullName: user.fullName,
         email: user.email,
         role: user.role as UserRole,
       },
@@ -162,7 +177,7 @@ export class AuthService {
     };
   }
 
-  private async generateAccessToken(user: User): Promise<{ token: string; expiresAt: Date }> {
+  private async generateAccessToken(user: UserRecord): Promise<{ token: string; expiresAt: Date }> {
     const expiresInMinutes =
       user.role === UserRole.Admin
         ? this.configService.adminAccessExpiryMinutes

@@ -1,9 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppConfigService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    @Inject(ConfigService)
+    private readonly configService: ConfigService,
+  ) {}
 
   get port(): number {
     return this.getInt(['PORT'], 3000);

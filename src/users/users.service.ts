@@ -1,21 +1,21 @@
 import { Injectable } from '@nestjs/common';
 
-import { UserRole } from '../common/enums/app.enums';
+import { tryParseUserRole, UserRole } from '../common/enums/app.enums';
 import {
   AppBadRequestException,
   AppConflictException,
   AppForbiddenException,
   AppNotFoundException,
 } from '../common/exceptions/app-exception';
-import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseService } from '../database/database.service';
 import { AdminOverviewDto, UserCreateDto, UserReadDto, UserUpdateDto } from './dto/users.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async getAll(): Promise<UserReadDto[]> {
-    const users = await this.prisma.user.findMany({
+    const users = await this.db.user.findMany({
       where: { isDeleted: false },
       orderBy: { createdAt: 'desc' },
     });
@@ -24,7 +24,7 @@ export class UsersService {
   }
 
   async getById(id: string): Promise<UserReadDto> {
-    const user = await this.prisma.user.findFirst({
+    const user = await this.db.user.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -40,7 +40,7 @@ export class UsersService {
 
   async getByRole(role: string): Promise<UserReadDto[]> {
     const resolvedRole = this.parseRole(role);
-    const users = await this.prisma.user.findMany({
+    const users = await this.db.user.findMany({
       where: {
         isDeleted: false,
         role: resolvedRole,
@@ -61,30 +61,30 @@ export class UsersService {
       usersLast7Days,
       totalReviews,
       reviewsLast7Days,
-    ] = await this.prisma.$transaction([
-      this.prisma.hostel.count({
+    ] = await this.db.$transaction([
+      this.db.hostel.count({
         where: { isDeleted: false },
       }),
-      this.prisma.hostel.count({
+      this.db.hostel.count({
         where: {
           isDeleted: false,
           createdAt: { gte: sevenDaysAgo },
         },
       }),
-      this.prisma.user.count({
+      this.db.user.count({
         where: {
           isDeleted: false,
           NOT: { role: UserRole.Admin },
         },
       }),
-      this.prisma.user.count({
+      this.db.user.count({
         where: {
           isDeleted: false,
           NOT: { role: UserRole.Admin },
           createdAt: { gte: sevenDaysAgo },
         },
       }),
-      this.prisma.hostelReview.count({
+      this.db.hostelReview.count({
         where: {
           isDeleted: false,
           user: {
@@ -93,7 +93,7 @@ export class UsersService {
           },
         },
       }),
-      this.prisma.hostelReview.count({
+      this.db.hostelReview.count({
         where: {
           isDeleted: false,
           createdAt: { gte: sevenDaysAgo },
@@ -123,7 +123,7 @@ export class UsersService {
 
   async create(dto: UserCreateDto): Promise<UserReadDto> {
     try {
-      const user = await this.prisma.user.create({
+      const user = await this.db.user.create({
         data: {
           fullName: dto.fullName,
           email: dto.email,
@@ -143,7 +143,7 @@ export class UsersService {
   }
 
   async update(id: string, dto: UserUpdateDto): Promise<UserReadDto> {
-    const existingUser = await this.prisma.user.findFirst({
+    const existingUser = await this.db.user.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -154,7 +154,7 @@ export class UsersService {
       throw new AppNotFoundException('User not found.');
     }
 
-    const user = await this.prisma.user.update({
+    const user = await this.db.user.update({
       where: { id },
       data: {
         fullName: dto.fullName,
@@ -168,7 +168,7 @@ export class UsersService {
   }
 
   async delete(id: string, requestingUserId: string, isAdmin: boolean) {
-    const user = await this.prisma.user.findFirst({
+    const user = await this.db.user.findFirst({
       where: {
         id,
         isDeleted: false,
@@ -186,7 +186,7 @@ export class UsersService {
       throw new AppForbiddenException('You can only delete your own profile.');
     }
 
-    await this.prisma.user.update({
+    await this.db.user.update({
       where: { id },
       data: {
         isDeleted: true,
@@ -197,23 +197,9 @@ export class UsersService {
   }
 
   private parseRole(rawRole: string): UserRole {
-    const normalized = rawRole?.trim().toLowerCase();
-
-    if (normalized === 'student') {
-      return UserRole.Student;
-    }
-
-    if (normalized === 'owner') {
-      return UserRole.Owner;
-    }
-
-    if (normalized === 'admin') {
-      return UserRole.Admin;
-    }
-
-    const numericRole = Number.parseInt(normalized, 10);
-    if (Number.isInteger(numericRole) && [UserRole.Student, UserRole.Owner, UserRole.Admin].includes(numericRole)) {
-      return numericRole as UserRole;
+    const parsedRole = tryParseUserRole(rawRole);
+    if (parsedRole !== null) {
+      return parsedRole;
     }
 
     throw new AppBadRequestException('Invalid role. Use Student, Owner, Admin or 0, 1, 2.', 'invalid_role');

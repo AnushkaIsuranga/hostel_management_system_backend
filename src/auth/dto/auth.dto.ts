@@ -10,6 +10,7 @@ export interface AuthTokensResponseDto {
   accessToken: string;
   accessTokenExpiresAt: Date;
   userId: string;
+  fullName: string;
   email: string;
   role: UserRole;
 }

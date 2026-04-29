@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UserRole } from '../../../src/common/enums/app.enums';
+import { JwtAuthGuard } from '../../../src/common/guards/jwt-auth.guard';
 import { UsersController } from '../../../src/users/users.controller';
 import { UsersService } from '../../../src/users/users.service';
 import { createIntegrationHttpApp, IntegrationHttpContext, makeUser } from '../../helpers';
@@ -17,6 +18,7 @@ const makeUsersServiceMock = () => ({
 
 describe('UsersController Integration', () => {
   let ctx: IntegrationHttpContext;
+  let adminCtx: IntegrationHttpContext;
   const usersService = makeUsersServiceMock();
 
   beforeAll(async () => {
@@ -24,10 +26,18 @@ describe('UsersController Integration', () => {
       controllers: [UsersController],
       providers: [{ provide: UsersService, useValue: usersService }],
     });
-  });
+
+    adminCtx = await createIntegrationHttpApp({
+      controllers: [UsersController],
+      providers: [{ provide: UsersService, useValue: usersService }],
+      guardOverrides: [{ guard: JwtAuthGuard, useValue: { canActivate: () => true } }],
+      currentUser: { userId: 'admin-1', role: UserRole.Admin },
+    });
+  }, 60000);
 
   afterAll(async () => {
     await ctx.app.close();
+    await adminCtx.app.close();
   });
 
   beforeEach(() => {
@@ -75,7 +85,7 @@ describe('UsersController Integration', () => {
   it('POST /api/users creates user and returns payload', async () => {
     usersService.create.mockResolvedValue(makeUser({ fullName: 'Alice Test', role: UserRole.Student }));
 
-    const response = await ctx.client
+    const response = await adminCtx.client
       .post('/api/users')
       .send({
         fullName: 'Alice Test',
@@ -92,5 +102,107 @@ describe('UsersController Integration', () => {
       }),
     );
     expect(response.body.fullName).toBe('Alice Test');
+  });
+
+  it('POST /api/users rejects non-admin callers', async () => {
+    const studentCtx = await createIntegrationHttpApp({
+      controllers: [UsersController],
+      providers: [{ provide: UsersService, useValue: usersService }],
+      guardOverrides: [{ guard: JwtAuthGuard, useValue: { canActivate: () => true } }],
+      currentUser: { userId: 'user-1', role: UserRole.Student },
+    });
+
+    try {
+      const response = await studentCtx.client
+        .post('/api/users')
+        .send({
+          fullName: 'Blocked User',
+          email: 'blocked@test.com',
+          phoneNumber: '0711111111',
+          role: UserRole.Owner,
+        })
+        .expect(403);
+
+      expect(usersService.create).not.toHaveBeenCalled();
+      expect(response.body).toEqual(
+        expect.objectContaining({
+          status: 403,
+          errorCode: 'admin_only',
+        }),
+      );
+    } finally {
+      await studentCtx.app.close();
+    }
+  });
+
+  it('PUT /api/users/:id allows a user to update own profile but not escalate role', async () => {
+    usersService.update.mockResolvedValue(
+      makeUser({
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        fullName: 'Owner One',
+        phoneNumber: '0771234567',
+        role: UserRole.Owner,
+      }),
+    );
+
+    const ownerCtx = await createIntegrationHttpApp({
+      controllers: [UsersController],
+      providers: [{ provide: UsersService, useValue: usersService }],
+      guardOverrides: [{ guard: JwtAuthGuard, useValue: { canActivate: () => true } }],
+      currentUser: { userId: '550e8400-e29b-41d4-a716-446655440000', role: UserRole.Owner },
+    });
+
+    try {
+      const response = await ownerCtx.client
+        .put('/api/users/550e8400-e29b-41d4-a716-446655440000')
+        .send({
+          fullName: 'Owner One',
+          phoneNumber: '0771234567',
+          role: UserRole.Admin,
+        })
+        .expect(200);
+
+      expect(usersService.update).toHaveBeenCalledWith(
+        '550e8400-e29b-41d4-a716-446655440000',
+        expect.objectContaining({
+          fullName: 'Owner One',
+          phoneNumber: '0771234567',
+          role: UserRole.Owner,
+        }),
+      );
+      expect(response.body.role).toBe(UserRole.Owner);
+    } finally {
+      await ownerCtx.app.close();
+    }
+  });
+
+  it('PUT /api/users/:id rejects non-admin updates to other users', async () => {
+    const ownerCtx = await createIntegrationHttpApp({
+      controllers: [UsersController],
+      providers: [{ provide: UsersService, useValue: usersService }],
+      guardOverrides: [{ guard: JwtAuthGuard, useValue: { canActivate: () => true } }],
+      currentUser: { userId: '550e8400-e29b-41d4-a716-446655440000', role: UserRole.Owner },
+    });
+
+    try {
+      const response = await ownerCtx.client
+        .put('/api/users/550e8400-e29b-41d4-a716-446655440001')
+        .send({
+          fullName: 'Owner One',
+          phoneNumber: '0771234567',
+          role: UserRole.Owner,
+        })
+        .expect(403);
+
+      expect(usersService.update).not.toHaveBeenCalled();
+      expect(response.body).toEqual(
+        expect.objectContaining({
+          status: 403,
+          errorCode: 'profile_owner_only',
+        }),
+      );
+    } finally {
+      await ownerCtx.app.close();
+    }
   });
 });

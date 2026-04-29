@@ -28,6 +28,7 @@ export class UserRegisterDto {
   email: string;
   phoneNumber: string;
   password: string;
+  role?: UserRole | string;
 }
 
 export interface DashboardMetricDto {

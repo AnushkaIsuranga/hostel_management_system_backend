@@ -6,14 +6,14 @@ import {
   AppForbiddenException,
   AppNotFoundException,
 } from '../../common/exceptions/app-exception';
-import { PrismaService } from '../../prisma/prisma.service';
+import { DatabaseService } from '../../database/database.service';
 import { HostelSubscriptionReadDto, UpsertHostelSubscriptionDto } from './dto/hostel-subscriptions.dto';
 
 @Injectable()
 export class HostelSubscriptionsService {
   private readonly logger = new Logger(HostelSubscriptionsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly db: DatabaseService) {}
 
   async upsert(
     hostelId: string,
@@ -29,7 +29,7 @@ export class HostelSubscriptionsService {
     const now = new Date();
     const isActive = new Date(dto.expiryDate) > now;
 
-    const existing = await this.prisma.hostelSubscription.findFirst({
+    const existing = await this.db.hostelSubscription.findFirst({
       where: {
         hostelId,
         isDeleted: false,
@@ -37,7 +37,7 @@ export class HostelSubscriptionsService {
     });
 
     const subscription = existing
-      ? await this.prisma.hostelSubscription.update({
+      ? await this.db.hostelSubscription.update({
           where: { id: existing.id },
           data: {
             startDate: new Date(dto.startDate),
@@ -47,7 +47,7 @@ export class HostelSubscriptionsService {
             ...(new Date(dto.expiryDate) > now ? { lastReminderSentAt: null } : {}),
           },
         })
-      : await this.prisma.hostelSubscription.create({
+      : await this.db.hostelSubscription.create({
           data: {
             hostelId,
             startDate: new Date(dto.startDate),
@@ -71,7 +71,7 @@ export class HostelSubscriptionsService {
       hostelUpdate.verificationStatus = HostelVerificationStatus.Pending;
     }
 
-    await this.prisma.hostel.update({
+    await this.db.hostel.update({
       where: { id: hostelId },
       data: hostelUpdate,
     });
@@ -82,7 +82,7 @@ export class HostelSubscriptionsService {
   async get(hostelId: string, actorUserId: string, isAdmin: boolean): Promise<HostelSubscriptionReadDto | null> {
     await this.ensureAuthorizedHostel(hostelId, actorUserId, isAdmin);
 
-    const subscription = await this.prisma.hostelSubscription.findFirst({
+    const subscription = await this.db.hostelSubscription.findFirst({
       where: {
         hostelId,
         isDeleted: false,
@@ -96,7 +96,7 @@ export class HostelSubscriptionsService {
     const utcNow = new Date();
     const reminderThresholdUtc = new Date(utcNow.getTime() + 3 * 24 * 60 * 60 * 1000);
 
-    const expired = await this.prisma.hostelSubscription.findMany({
+    const expired = await this.db.hostelSubscription.findMany({
       where: {
         isDeleted: false,
         isActive: true,
@@ -110,15 +110,15 @@ export class HostelSubscriptionsService {
     });
 
     for (const subscription of expired) {
-      await this.prisma.$transaction([
-        this.prisma.hostelSubscription.update({
+      await this.db.$transaction([
+        this.db.hostelSubscription.update({
           where: { id: subscription.id },
           data: {
             isActive: false,
             updatedAt: utcNow,
           },
         }),
-        this.prisma.hostel.update({
+        this.db.hostel.update({
           where: { id: subscription.hostelId },
           data: {
             isVerified: false,
@@ -132,7 +132,7 @@ export class HostelSubscriptionsService {
       await this.sendSubscriptionExpiredEmail(subscription.hostel.ownerId);
     }
 
-    const upcoming = await this.prisma.hostelSubscription.findMany({
+    const upcoming = await this.db.hostelSubscription.findMany({
       where: {
         isDeleted: false,
         isActive: true,
@@ -151,7 +151,7 @@ export class HostelSubscriptionsService {
         continue;
       }
 
-      await this.prisma.hostelSubscription.update({
+      await this.db.hostelSubscription.update({
         where: { id: subscription.id },
         data: {
           lastReminderSentAt: utcNow,
@@ -164,7 +164,7 @@ export class HostelSubscriptionsService {
   }
 
   private async ensureAuthorizedHostel(hostelId: string, actorUserId: string, isAdmin: boolean) {
-    const hostel = await this.prisma.hostel.findFirst({
+    const hostel = await this.db.hostel.findFirst({
       where: {
         id: hostelId,
         isDeleted: false,
@@ -211,7 +211,7 @@ export class HostelSubscriptionsService {
   }
 
   private async sendSubscriptionExpiredEmail(ownerId: string) {
-    const owner = await this.prisma.user.findFirst({
+    const owner = await this.db.user.findFirst({
       where: {
         id: ownerId,
         isDeleted: false,
@@ -229,7 +229,7 @@ export class HostelSubscriptionsService {
   }
 
   private async sendSubscriptionExpiringSoonEmail(ownerId: string, expiryDate: Date) {
-    const owner = await this.prisma.user.findFirst({
+    const owner = await this.db.user.findFirst({
       where: {
         id: ownerId,
         isDeleted: false,
