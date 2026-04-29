@@ -3,7 +3,7 @@ import 'dotenv/config';
 import argon2 from 'argon2';
 import mongoose from 'mongoose';
 
-import { UserSchema } from './database.schemas';
+import { type UserRecord, UserSchema } from './database.schemas';
 import { UserRole } from '../common/enums/app.enums';
 
 async function main() {
@@ -21,7 +21,7 @@ async function main() {
     autoIndex: true,
   });
 
-  const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
+  const UserModel = (mongoose.models.User as mongoose.Model<UserRecord>) || mongoose.model<UserRecord>('User', UserSchema);
   const existingUser = await UserModel.findOne({ email }).lean().exec();
   const passwordHash = await argon2.hash(password);
 
