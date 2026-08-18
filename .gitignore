@@ -1,0 +1,15 @@
+node_modules
+dist
+wwwroot
+.env
+.env.local
+.env.staging
+.env.production
+.env.*.local
+coverage
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+.env.example
+.env.s3.example

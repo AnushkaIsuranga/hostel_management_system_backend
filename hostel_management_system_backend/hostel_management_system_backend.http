@@ -1,6 +1,0 @@
-@hostel_management_system_backend_HostAddress = http://localhost:5134
-
-GET {{hostel_management_system_backend_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
